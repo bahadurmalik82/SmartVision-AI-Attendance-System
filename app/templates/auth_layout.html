@@ -1,0 +1,89 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>{% block title %}Sign in - Attenova{% endblock %}</title>
+    <link rel="icon" type="image/png" href="{{ url_for('static', filename='img/logo.png') }}">
+    <meta name="csrf-token" content="{{ csrf_token() }}">
+    <script src="https://cdn.tailwindcss.com"></script>
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+    <link href="https://fonts.googleapis.com/css2?family=Fraunces:opsz,wght@9..144,700;9..144,800&family=Inter:wght@400;500;600;700;800&display=swap" rel="stylesheet">
+    <link rel="stylesheet" href="{{ url_for('static', filename='css/animations.css') }}">
+    <script>
+        tailwind.config = { theme: { extend: { colors: { iba: { blue: '#003366', gold: '#D4AF37', dark: '#0A192F', accent: '#0D9488' } } } } }
+    </script>
+</head>
+<body class="bg-slate-50 text-slate-800 font-sans iba-auth-page">
+    <!-- Live background (v7): soft drifting navy glow + faint gold
+         particles, same family as the landing page. Pure decoration. -->
+    <div class="iba-auth-bg" aria-hidden="true">
+        <span class="blob blob-1"></span>
+        <span class="blob blob-2"></span>
+        <span class="dot"></span>
+        <span class="dot"></span>
+        <span class="dot"></span>
+    </div>
+    <!-- Brand header: same floating top-bar shell as everywhere else
+         (in-flow here, so the page never scrolls). No sidebar on any
+         login page (v5). -->
+    <header class="iba-topbar" style="position: static; margin: 12px 12px 0; flex-shrink: 0;">
+        <a href="{{ url_for('landing.index') }}" class="iba-topbar-brand">
+            <span class="iba-topbar-logo">
+                <img src="{{ url_for('static', filename='img/logo.png') }}" alt="Attenova logo" onerror="this.style.display='none'">
+            </span>
+            <span class="iba-topbar-text">
+                <span class="iba-topbar-name">Attenova</span>
+                <span class="iba-topbar-sub">Smart AI Attendance</span>
+            </span>
+        </a>
+        <span class="iba-topbar-spacer"></span>
+        <a href="{{ url_for('landing.index') }}" class="text-xs font-semibold text-white hover:text-iba-gold">&larr; Back to home</a>
+    </header>
+
+    <main class="iba-auth-main max-w-4xl w-full mx-auto px-4">
+        {% with messages = get_flashed_messages(with_categories=true) %}
+            {% if messages %}
+                {% for category, message in messages %}
+                    <div class="iba-flash p-4 mb-4 rounded-lg border text-sm {% if category == 'danger' %}bg-red-50 border-red-200 text-red-800{% elif category == 'success' %}bg-green-50 border-green-200 text-green-800{% elif category == 'warning' %}bg-yellow-50 border-yellow-200 text-yellow-800{% else %}bg-blue-50 border-blue-200 text-blue-800{% endif %}">
+                        {{ message }}
+                    </div>
+                {% endfor %}
+            {% endif %}
+        {% endwith %}
+
+        <div class="grid grid-cols-1 md:grid-cols-5 gap-5 items-start">
+            <!-- The login / create-account form -->
+            <div class="md:col-span-3 bg-white p-8 rounded-2xl shadow-sm border border-slate-200">
+                {% block auth_form %}{% endblock %}
+            </div>
+
+            <!-- v5: the choice panel beside the form — slightly rounded,
+                 two sub-elements only. -->
+            <aside class="md:col-span-2 iba-auth-choice" aria-label="Choose who you are">
+                <div class="iba-auth-choice-card {% if request.endpoint in ('auth.login', 'auth.register') %}iba-auth-current{% endif %}">
+                    <p class="font-bold text-sm text-slate-900 flex items-center">
+                        <i class="fa-solid fa-chalkboard-user text-iba-blue mr-2"></i> I am Teacher
+                    </p>
+                    <p class="text-xs text-slate-500 mt-1 mb-3">Run classes, timetable, cameras and student lists.</p>
+                    <div class="flex flex-col gap-2">
+                        <a href="{{ url_for('auth.login') }}" class="btn {% if request.endpoint == 'auth.login' %}btn-primary{% else %}btn-secondary{% endif %} w-full">Login Account</a>
+                        <a href="{{ url_for('auth.register') }}" class="btn {% if request.endpoint == 'auth.register' %}btn-primary{% else %}btn-secondary{% endif %} w-full">Create Account</a>
+                    </div>
+                </div>
+                <div class="iba-auth-choice-card {% if request.endpoint == 'student.login' %}iba-auth-current{% endif %}">
+                    <p class="font-bold text-sm text-slate-900 flex items-center">
+                        <i class="fa-solid fa-user-graduate text-iba-blue mr-2"></i> I am Student
+                    </p>
+                    <p class="text-xs text-slate-500 mt-1 mb-3">Check your own attendance with your CMS ID and password.</p>
+                    <a href="{{ url_for('student.login') }}" class="btn {% if request.endpoint == 'student.login' %}btn-primary{% else %}btn-secondary{% endif %} w-full">Student Portal</a>
+                </div>
+            </aside>
+        </div>
+    </main>
+
+    <footer class="text-center text-xs text-slate-400 pb-4">Attenova &mdash; Smart AI Attendance &middot; Crafted by Bahadur Ali &middot; v7.0</footer>
+</body>
+</html>

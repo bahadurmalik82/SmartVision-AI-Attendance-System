@@ -1,0 +1,83 @@
+{% extends 'auth_layout.html' %}
+{% block title %}{{ 'Create Teacher Account' if is_signup else 'Teacher Login' }}{% endblock %}
+
+{% block auth_form %}
+    <div class="text-center mb-6 iba-auth-compact">
+        <img src="{{ url_for('static', filename='img/logo.png') }}" alt="Attenova logo"
+             class="w-16 h-16 object-contain mx-auto mb-2 rounded-2xl"
+             onerror="this.style.display='none'">
+        <p class="font-bold text-lg tracking-wide text-iba-blue">Attenova</p>
+        <p class="text-xs text-slate-400 mb-3">Smart AI Attendance</p>
+        <div class="iba-auth-icon w-16 h-16 bg-slate-100 text-iba-blue rounded-full flex items-center justify-center mx-auto mb-3 text-2xl">
+            <i class="fa-solid {{ 'fa-user-plus' if is_signup else 'fa-lock' }}"></i>
+        </div>
+        <h2 class="text-2xl font-bold text-slate-900">{{ 'Teacher Registration' if is_signup else 'Teacher Sign In' }}</h2>
+        <p class="text-xs text-slate-500 mt-1">
+            {{ 'Create your faculty portal account' if is_signup else 'Access your weekly timetable and live camera streams' }}
+        </p>
+    </div>
+
+    {% if is_signup %}
+    <form action="{{ url_for('auth.register') }}" method="POST" class="space-y-4">
+            <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
+        <div>
+            <label class="block text-xs font-semibold text-slate-600 mb-1">Full Name</label>
+            <input type="text" name="name" required placeholder="e.g. Dr. Muhammad Ismail" class="w-full px-3 py-2 border rounded-lg text-sm focus:ring-2 focus:ring-iba-blue focus:outline-none">
+        </div>
+        <div>
+            <label class="block text-xs font-semibold text-slate-600 mb-1">University Email</label>
+            <input type="email" name="email" required placeholder="name@university.edu" class="w-full px-3 py-2 border rounded-lg text-sm focus:ring-2 focus:ring-iba-blue focus:outline-none">
+        </div>
+        <div>
+            <label class="block text-xs font-semibold text-slate-600 mb-1">Department</label>
+            <select name="department" class="w-full px-3 py-2 border rounded-lg text-sm focus:ring-2 focus:ring-iba-blue focus:outline-none">
+                <option value="Computer Science">Department of Computer Science</option>
+                <option value="Software Engineering">Department of Software Engineering</option>
+                <option value="Artificial Intelligence">Department of Artificial Intelligence</option>
+                <option value="Electrical Engineering">Department of Electrical Engineering</option>
+            </select>
+        </div>
+        <div>
+            <label class="block text-xs font-semibold text-slate-600 mb-1">Password</label>
+            <input type="password" name="password" required placeholder="••••••••" class="w-full px-3 py-2 border rounded-lg text-sm focus:ring-2 focus:ring-iba-blue focus:outline-none">
+            <p class="text-xs text-slate-500 mt-1">At least 8 characters, with at least one letter and one number.</p>
+        </div>
+        <div>
+            <label class="block text-xs font-semibold text-slate-600 mb-1">Confirm Password</label>
+            <input type="password" name="confirm_password" required placeholder="••••••••" class="w-full px-3 py-2 border rounded-lg text-sm focus:ring-2 focus:ring-iba-blue focus:outline-none">
+        </div>
+        <button type="submit" class="btn btn-primary w-full">
+            Create Account
+        </button>
+        <p class="text-xs text-center text-slate-500 mt-3">
+            Already have an account? <a href="{{ url_for('auth.login') }}" class="text-iba-blue font-semibold hover:underline">Log In</a>
+        </p>
+    </form>
+    {% else %}
+    <form action="{{ url_for('auth.login') }}" method="POST" class="space-y-4">
+            <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
+        <div>
+            <label class="block text-xs font-semibold text-slate-600 mb-1">Email Address</label>
+            <input type="email" name="email" required placeholder="name@university.edu" class="w-full px-3 py-2 border rounded-lg text-sm focus:ring-2 focus:ring-iba-blue focus:outline-none">
+        </div>
+        <div>
+            <label class="block text-xs font-semibold text-slate-600 mb-1">Password</label>
+            <input type="password" name="password" required placeholder="••••••••" class="w-full px-3 py-2 border rounded-lg text-sm focus:ring-2 focus:ring-iba-blue focus:outline-none">
+        </div>
+        <div class="flex items-center justify-between text-xs">
+            <label class="flex items-center text-slate-600">
+                <input type="checkbox" name="remember" class="mr-2 rounded text-iba-blue"> Remember me
+            </label>
+        </div>
+        <button type="submit" class="btn btn-primary w-full">
+            Sign In to Faculty Portal
+        </button>
+        <p class="text-xs text-center text-slate-500 mt-3">
+            Don't have an account? <a href="{{ url_for('auth.register') }}" class="text-iba-blue font-semibold hover:underline">Register Here</a>
+        </p>
+    </form>
+    {% endif %}
+    <p class="text-xs text-center text-slate-500 mt-4">
+        <a href="{{ url_for('landing.index') }}" class="text-iba-blue font-semibold hover:underline">&larr; Back to Attenova home</a>
+    </p>
+{% endblock %}
