@@ -1,0 +1,184 @@
+{% extends 'base.html' %}
+{% block title %}Multi-Camera Configuration{% endblock %}
+
+{% block content %}
+<div class="space-y-6">
+    <div class="flex flex-col md:flex-row justify-between items-start md:items-center">
+        <div>
+            <h1 class="text-2xl font-bold text-slate-900 flex items-center">
+                <i class="fa-solid fa-video text-iba-blue mr-2"></i> Multi-Camera Configuration & Streaming
+            </h1>
+            <p class="text-xs text-slate-500 mt-1">Connect and switch between your Laptop Webcam, external USB cameras, or Mobile Phone running <strong>IP Webcam</strong> over Wi-Fi.</p>
+        </div>
+    </div>
+
+    <!-- Quick How-To Guide for Mobile IP Webcam -->
+    <div class="bg-slate-100 border border-slate-200 rounded-2xl p-4 text-xs text-slate-700 flex items-start space-x-3">
+        <i class="fa-solid fa-mobile-screen-button text-2xl text-iba-blue mt-0.5"></i>
+        <div class="space-y-1">
+            <h4 class="font-bold text-sm">How to use your Mobile Phone as a Wireless Classroom Camera ($0 Cost):</h4>
+            <ol class="list-decimal list-inside space-y-0.5 text-slate-700">
+                <li>Make sure your mobile phone and this PC are connected to the <strong>same Wi-Fi network</strong> (or phone hotspot).</li>
+                <li>Open the <strong>"IP Webcam"</strong> app on your Android/iPhone and scroll down to click <strong>"Start server"</strong>.</li>
+                <li>The app will display an IP address on your phone screen (e.g. <code>http://192.168.1.15:8080</code>).</li>
+                <li>Add it below using URL format: <code>http://&lt;phone_ip&gt;:8080/video</code> and click <strong>Test Connection</strong>.</li>
+            </ol>
+        </div>
+    </div>
+
+    <div class="grid grid-cols-1 lg:grid-cols-3 gap-6">
+        <!-- Add New Camera Form -->
+        <div class="bg-white p-6 rounded-2xl border border-slate-200 shadow-sm space-y-4">
+            <h3 class="text-sm font-bold text-slate-800 flex items-center">
+                <i class="fa-solid fa-plus-circle text-iba-blue mr-2"></i> Register New Camera
+            </h3>
+
+            <form action="{{ url_for('cameras.add') }}" method="POST" class="space-y-3 text-xs">
+            <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
+                <div>
+                    <label class="block font-semibold text-slate-600 mb-1">Camera Friendly Name</label>
+                    <input type="text" name="name" required placeholder="e.g. Classroom Back Wall Mobile Cam" class="w-full px-3 py-2 border rounded-lg focus:ring-2 focus:ring-iba-blue">
+                </div>
+
+                <div>
+                    <label class="block font-semibold text-slate-600 mb-1">Camera Hardware Type</label>
+                    <select name="camera_type" id="cameraTypeSelect" onchange="toggleCameraType(this.value)" class="w-full px-3 py-2 border rounded-lg focus:ring-2 focus:ring-iba-blue bg-white">
+                        <option value="ip_webcam">Mobile Phone (IP Webcam Wi-Fi / RTSP)</option>
+                        <option value="browser">Laptop / USB Webcam (Browser Direct)</option>
+                    </select>
+                </div>
+
+                <div id="streamUrlGroup">
+                    <label class="block font-semibold text-slate-600 mb-1">Mobile IP Webcam Video Stream URL</label>
+                    <div class="flex space-x-2">
+                        <input type="text" name="stream_url" id="streamUrlInput" placeholder="http://192.168.1.15:8080/video" class="w-full px-3 py-2 border rounded-lg focus:ring-2 focus:ring-iba-blue font-mono text-xs">
+                        <button type="button" onclick="testPingUrl()" class="btn btn-secondary">
+                            Test Ping
+                        </button>
+                    </div>
+                    <span id="pingStatus" class="block text-xs mt-1 text-slate-500"></span>
+                </div>
+
+                <button type="submit" class="btn btn-primary w-full mt-3">
+                    Save Camera Configuration
+                </button>
+            </form>
+        </div>
+
+        <!-- Registered Cameras List -->
+        <div class="lg:col-span-2 bg-white rounded-2xl border border-slate-200 shadow-sm overflow-hidden flex flex-col">
+            <div class="p-4 border-b border-slate-100 flex justify-between items-center bg-slate-50">
+                <h3 class="font-bold text-xs uppercase tracking-wider text-slate-600">Registered Camera Sources</h3>
+                <span class="text-xs text-slate-500 font-semibold">{{ cameras|length }} Devices Available</span>
+            </div>
+
+            <div class="overflow-x-auto flex-grow">
+                <table class="w-full text-left text-xs">
+                    <thead class="bg-slate-100/70 text-slate-600 uppercase font-semibold">
+                        <tr>
+                            <th class="p-3.5">Device Name</th>
+                            <th class="p-3.5">Hardware Type</th>
+                            <th class="p-3.5">Stream Source URL</th>
+                            <th class="p-3.5">Role</th>
+                            <th class="p-3.5 text-right">Actions</th>
+                        </tr>
+                    </thead>
+                    <tbody class="divide-y divide-slate-100">
+                        {% for cam in cameras %}
+                        <tr class="hover:bg-slate-50/80 transition {% if cam.is_active %}bg-emerald-50/40{% endif %}">
+                            <td class="p-3.5 font-bold text-slate-800 flex items-center">
+                                <i class="fa-solid {% if cam.camera_type == 'ip_webcam' %}fa-mobile-screen text-iba-blue{% else %}fa-camera text-slate-500{% endif %} mr-2"></i>
+                                {{ cam.name }}
+                            </td>
+                            <td class="p-3.5 text-slate-600">
+                                {% if cam.camera_type == 'ip_webcam' %}
+                                <span class="bg-slate-100 text-iba-blue border border-slate-200 px-2 py-0.5 rounded text-xs font-medium">Wireless IP Stream</span>
+                                {% else %}
+                                <span class="bg-slate-100 text-slate-700 border border-slate-200 px-2 py-0.5 rounded text-xs font-medium">Browser / USB</span>
+                                {% endif %}
+                            </td>
+                            <td class="p-3.5 font-mono text-xs text-slate-500">
+                                {{ cam.stream_url if cam.stream_url else 'Built-in / Local Hardware' }}
+                            </td>
+                            <td class="p-3.5">
+                                {% if cam.is_active %}
+                                <span class="bg-emerald-100 text-emerald-600 border border-emerald-300 px-2.5 py-0.5 rounded-full font-bold text-xs">
+                                    <i class="fa-solid fa-circle-dot mr-1 text-emerald-600 animate-pulse"></i> Primary Active
+                                </span>
+                                {% else %}
+                                <span class="text-slate-400 text-xs">Standby</span>
+                                {% endif %}
+                            </td>
+                            <td class="p-3.5 text-right space-x-2">
+                                {% if not cam.is_active %}
+                                <form action="{{ url_for('cameras.set_active', camera_id=cam.id) }}" method="POST" class="inline">
+            <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
+                                    <button type="submit" class="bg-emerald-50 hover:bg-emerald-100 text-emerald-600 border border-emerald-300 px-2.5 py-1 rounded text-xs font-semibold">
+                                        Use This Camera
+                                    </button>
+                                </form>
+                                {% endif %}
+                                <form action="{{ url_for('cameras.delete', camera_id=cam.id) }}" method="POST" class="inline" data-iba-confirm data-iba-confirm-title="Remove camera?" data-iba-confirm-message="This camera will be removed from your monitoring list." data-iba-confirm-text="Remove">
+            <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
+                                    <button type="submit" class="text-rose-600 hover:text-rose-600 text-xs px-2 py-1 rounded border border-rose-200">
+                                        Delete
+                                    </button>
+                                </form>
+                            </td>
+                        </tr>
+                        {% else %}
+                        <tr>
+                            <td colspan="5" class="p-6 text-center text-slate-400">
+                                No cameras registered yet. Register your Laptop Webcam or Mobile Phone IP Webcam using the form on the left.
+                            </td>
+                        </tr>
+                        {% endfor %}
+                    </tbody>
+                </table>
+            </div>
+        </div>
+    </div>
+</div>
+{% endblock %}
+
+{% block scripts %}
+<script>
+function toggleCameraType(val) {
+    const group = document.getElementById('streamUrlGroup');
+    if (val === 'browser') {
+        group.style.display = 'none';
+    } else {
+        group.style.display = 'block';
+    }
+}
+
+async function testPingUrl() {
+    const input = document.getElementById('streamUrlInput');
+    const status = document.getElementById('pingStatus');
+    const url = input.value.trim();
+
+    if (!url) {
+        status.innerHTML = '<span class="text-rose-600">Please enter an IP Webcam URL first.</span>';
+        return;
+    }
+
+    status.innerHTML = '<span class="text-slate-700"><i class="fa-solid fa-spinner fa-spin mr-1"></i> Testing Wi-Fi connection to phone...</span>';
+
+    try {
+        const res = await fetch("{{ url_for('cameras.test_ping') }}", {
+            method: 'POST',
+            headers: {'Content-Type': 'application/json', 'X-CSRFToken': document.querySelector('meta[name="csrf-token"]').getAttribute('content')},
+            body: JSON.stringify({url: url})
+        });
+        const data = await res.json();
+        if (data.success) {
+            status.innerHTML = `<span class="text-emerald-600 font-semibold"><i class="fa-solid fa-check-circle mr-1"></i> ${data.message}</span>`;
+        } else {
+            status.innerHTML = `<span class="text-rose-600 font-semibold"><i class="fa-solid fa-xmark-circle mr-1"></i> ${data.message}</span>`;
+        }
+    } catch (err) {
+        status.innerHTML = `<span class="text-rose-600">Error: ${err.message}</span>`;
+    }
+}
+</script>
+{% endblock %}
