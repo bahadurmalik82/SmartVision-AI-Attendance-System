@@ -1,0 +1,238 @@
+<!-- Interactive 3-Angle Camera Capture Modal (v5, fixed layout).
+     The modal itself scrolls (max 92vh) instead of the whole page, the
+     video box is capped so it never pushes the buttons off screen, and
+     the page behind it cannot scroll while it is open. The camera is
+     always stopped when the modal closes. -->
+<div id="captureModal" class="fixed inset-0 bg-slate-950/80 backdrop-blur-sm z-50 hidden items-center justify-center p-4">
+    <div class="bg-white rounded-2xl max-w-lg w-full shadow-2xl border border-slate-200 flex flex-col" style="max-height: 92vh;">
+        <div class="flex justify-between items-center px-5 pt-4 pb-3 border-b border-slate-100 flex-shrink-0">
+            <div class="min-w-0">
+                <h3 class="font-bold text-base text-slate-900 truncate" id="modalStudentName">Enrolling Face</h3>
+                <p class="text-xs text-slate-500" id="modalStudentRoll">Roll Number</p>
+            </div>
+            <button type="button" onclick="closeCaptureModal()" class="btn btn-ghost flex-shrink-0" aria-label="Close">
+                <i class="fa-solid fa-xmark"></i>
+            </button>
+        </div>
+
+        <div class="px-5 py-4 space-y-4 overflow-y-auto">
+            <!-- Camera Box with Overlay -->
+            <div class="bg-slate-950 rounded-xl relative overflow-hidden flex items-center justify-center border border-slate-800" style="aspect-ratio: 16 / 9; max-height: 38vh;">
+                <video id="modalVideo" autoplay playsinline muted class="w-full h-full object-cover"></video>
+                <canvas id="captureCanvas" class="hidden"></canvas>
+
+                <!-- Countdown Overlay -->
+                <div id="countdownOverlay" class="absolute inset-0 bg-black/50 flex flex-col items-center justify-center text-white hidden">
+                    <span id="countdownNumber" class="text-6xl font-black text-iba-gold animate-bounce">3</span>
+                    <span id="countdownInstruction" class="text-sm font-semibold mt-2">Look Straight at Camera</span>
+                </div>
+
+                <!-- Face Oval Guide -->
+                <div class="absolute inset-0 pointer-events-none flex items-center justify-center">
+                    <div class="w-36 h-44 border-2 border-dashed border-white/50 rounded-full"></div>
+                </div>
+            </div>
+
+            <!-- 3-Angle Step Progression -->
+            <div class="grid grid-cols-3 gap-2 text-center text-xs">
+                <div id="step1Box" class="p-2 rounded-lg border border-slate-200 bg-slate-50 font-medium">
+                    <span class="block font-bold">1. Front</span>
+                    <span id="step1Status" class="text-slate-400">Pending</span>
+                </div>
+                <div id="step2Box" class="p-2 rounded-lg border border-slate-200 bg-slate-50 font-medium">
+                    <span class="block font-bold">2. Left (30°)</span>
+                    <span id="step2Status" class="text-slate-400">Pending</span>
+                </div>
+                <div id="step3Box" class="p-2 rounded-lg border border-slate-200 bg-slate-50 font-medium">
+                    <span class="block font-bold">3. Right (30°)</span>
+                    <span id="step3Status" class="text-slate-400">Pending</span>
+                </div>
+            </div>
+
+            <!-- Action Buttons -->
+            <div class="flex flex-col sm:flex-row gap-2 pt-1">
+                <button id="startCaptureBtn" type="button" onclick="runAutomatedCaptureSequence()" class="btn btn-primary flex-1">
+                    <i class="fa-solid fa-camera mr-1.5"></i> Start 3-Angle Automated Capture
+                </button>
+                <button id="saveEmbeddingsBtn" type="button" onclick="submitCapturedPhotos()" disabled class="btn btn-gold flex-1">
+                    <i class="fa-solid fa-check mr-1.5"></i> Save & Generate 128-D Vector
+                </button>
+            </div>
+            <p id="modalFeedback" class="text-xs text-center text-slate-500"></p>
+        </div>
+    </div>
+</div>
+
+<script>
+function togglePw(id, plain) {
+    var el = document.getElementById('pw-' + id);
+    if (!el) return;
+    if (el.dataset.shown === '1') {
+        el.textContent = '\u2022\u2022\u2022\u2022\u2022\u2022\u2022\u2022';
+        el.dataset.shown = '0';
+    } else {
+        el.textContent = plain;
+        el.dataset.shown = '1';
+    }
+}
+function copyPw(plain, btn) {
+    function done() { if (btn) { btn.innerHTML = '<i class="fa-solid fa-check"></i>'; setTimeout(function(){ btn.innerHTML = '<i class="fa-solid fa-copy"></i>'; }, 1500); } }
+    if (navigator.clipboard && navigator.clipboard.writeText) {
+        navigator.clipboard.writeText(plain).then(done).catch(done);
+    } else {
+        var ta = document.createElement('textarea');
+        ta.value = plain; document.body.appendChild(ta); ta.select();
+        try { document.execCommand('copy'); } catch (e) {}
+        document.body.removeChild(ta); done();
+    }
+}
+let activeStudentId = null;
+let videoStream = null;
+let capturedFrames = [];
+
+async function openCaptureModal(id, name, roll) {
+    activeStudentId = id;
+    capturedFrames = [];
+    document.getElementById('modalStudentName').textContent = name;
+    document.getElementById('modalStudentRoll').textContent = 'Roll No: ' + roll;
+    document.getElementById('modalFeedback').textContent = "Position face inside oval guide, then click 'Start 3-Angle Automated Capture'.";
+    document.getElementById('saveEmbeddingsBtn').disabled = true;
+    document.getElementById('startCaptureBtn').disabled = false;
+    resetStepBoxes();
+
+    const modal = document.getElementById('captureModal');
+    modal.classList.remove('hidden');
+    modal.classList.add('flex');
+    document.body.style.overflow = 'hidden'; /* page behind must not scroll */
+
+    try {
+        videoStream = await navigator.mediaDevices.getUserMedia({ video: { width: 640, height: 480 }, audio: false });
+        document.getElementById('modalVideo').srcObject = videoStream;
+    } catch (err) {
+        showIbaAlert("Camera Access Denied", "Camera access denied: " + err.message, "error");
+        closeCaptureModal();
+    }
+}
+
+function closeCaptureModal() {
+    if (videoStream) {
+        videoStream.getTracks().forEach(track => track.stop());
+        videoStream = null;
+    }
+    var modal = document.getElementById('captureModal');
+    modal.classList.add('hidden');
+    modal.classList.remove('flex');
+    document.body.style.overflow = '';
+}
+
+function resetStepBoxes() {
+    ['1', '2', '3'].forEach(num => {
+        document.getElementById('step' + num + 'Box').className = 'p-2 rounded-lg border border-slate-200 bg-slate-50 font-medium';
+        document.getElementById('step' + num + 'Status').textContent = 'Pending';
+    });
+}
+
+async function runAutomatedCaptureSequence() {
+    capturedFrames = [];
+    document.getElementById('startCaptureBtn').disabled = true;
+
+    const steps = [
+        { num: 1, title: 'Look Straight (Front)', msg: 'Position face straight' },
+        { num: 2, title: 'Turn Head Left (30°)', msg: 'Turn head slightly left' },
+        { num: 3, title: 'Turn Head Right (30°)', msg: 'Turn head slightly right' }
+    ];
+
+    for (let i = 0; i < steps.length; i++) {
+        const step = steps[i];
+        await countdown(3, step.title);
+        const frame = captureSingleFrame();
+        capturedFrames.push(frame);
+
+        const box = document.getElementById('step' + step.num + 'Box');
+        box.className = 'p-2 rounded-lg border border-emerald-300 bg-emerald-50 text-emerald-600 font-bold';
+        document.getElementById('step' + step.num + 'Status').textContent = 'Captured ✓';
+    }
+
+    document.getElementById('countdownOverlay').classList.add('hidden');
+    document.getElementById('startCaptureBtn').disabled = false;
+    document.getElementById('saveEmbeddingsBtn').disabled = false;
+    document.getElementById('modalFeedback').innerHTML = '<span class="text-emerald-600 font-semibold">All 3 angles captured! Click "Save & Generate 128-D Vector".</span>';
+}
+
+function countdown(seconds, instruction) {
+    return new Promise(resolve => {
+        const overlay = document.getElementById('countdownOverlay');
+        const numElem = document.getElementById('countdownNumber');
+        const instElem = document.getElementById('countdownInstruction');
+        overlay.classList.remove('hidden');
+        instElem.textContent = instruction;
+
+        let count = seconds;
+        numElem.textContent = count;
+
+        const interval = setInterval(() => {
+            count--;
+            if (count > 0) {
+                numElem.textContent = count;
+            } else {
+                clearInterval(interval);
+                resolve();
+            }
+        }, 1000);
+    });
+}
+
+function captureSingleFrame() {
+    const video = document.getElementById('modalVideo');
+    const canvas = document.getElementById('captureCanvas');
+    canvas.width = 300;
+    canvas.height = 300;
+    const ctx = canvas.getContext('2d');
+
+    // Crop center square
+    const minDim = Math.min(video.videoWidth, video.videoHeight);
+    const startX = (video.videoWidth - minDim) / 2;
+    const startY = (video.videoHeight - minDim) / 2;
+    ctx.drawImage(video, startX, startY, minDim, minDim, 0, 0, 300, 300);
+    return canvas.toDataURL('image/jpeg', 0.9);
+}
+
+async function submitCapturedPhotos() {
+    const btn = document.getElementById('saveEmbeddingsBtn');
+    btn.disabled = true;
+    document.getElementById('modalFeedback').innerHTML = '<span class="text-slate-700"><i class="fa-solid fa-spinner fa-spin mr-1"></i> Running blur check & extracting 128-D HOG vector...</span>';
+
+    try {
+        const res = await fetch('/students/upload-photos/' + activeStudentId, {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json',
+                       'X-CSRFToken': document.querySelector('meta[name="csrf-token"]').getAttribute('content') },
+            body: JSON.stringify({ images: capturedFrames })
+        });
+        const data = await res.json();
+
+        if (data.success) {
+            showIbaAlert("Enrollment Successful", data.message, "success", function () {
+                closeCaptureModal();
+                window.location.reload();
+            });
+        } else {
+            document.getElementById('modalFeedback').innerHTML = '<span class="text-rose-600 font-semibold"><i class="fa-solid fa-xmark mr-1"></i> ' + data.message + '</span>';
+            btn.disabled = false;
+        }
+    } catch (err) {
+        document.getElementById('modalFeedback').innerHTML = '<span class="text-rose-600 font-semibold">Error: ' + err.message + '</span>';
+        btn.disabled = false;
+    }
+}
+
+/* Close the capture modal from the backdrop or the Escape key. */
+document.addEventListener('click', function (e) {
+    var modal = document.getElementById('captureModal');
+    if (modal && e.target === modal) closeCaptureModal();
+});
+document.addEventListener('keydown', function (e) {
+    var modal = document.getElementById('captureModal');
+    if (e.key === 'Escape' && modal && !modal.classList.contains('hidden')) closeCaptureModal();
+});
+</script>
