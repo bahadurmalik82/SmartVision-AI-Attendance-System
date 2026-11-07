@@ -1,0 +1,165 @@
+{% extends 'base.html' %}
+{% block title %}ML Models Benchmark{% endblock %}
+
+{% block content %}
+<div class="space-y-6">
+    <div class="flex flex-col md:flex-row justify-between items-start md:items-center">
+        <div>
+            <h1 class="text-2xl font-bold text-slate-900 flex items-center">
+                <i class="fa-solid fa-brain text-iba-blue mr-2"></i> Machine Learning Model Benchmark & Evaluation
+            </h1>
+            <p class="text-xs text-slate-500 mt-1">
+                Comparative analysis of algorithms from the <strong>course syllabus</strong>: SVM (Week 6), KNN (Week 4), Random Forest (Week 13), and Logistic Regression (Week 5).
+            </p>
+        </div>
+    </div>
+
+    <!-- Syllabus Alignment Notice -->
+    <div class="bg-slate-100 border border-slate-200 rounded-2xl p-4 text-xs text-slate-700 flex items-start space-x-3">
+        <i class="fa-solid fa-book-open text-2xl text-iba-blue mt-0.5"></i>
+        <div class="space-y-1">
+            <h4 class="font-bold text-sm">Course Evaluation Metrics (Week 7 of Teaching Plan):</h4>
+            <p class="text-slate-600 leading-relaxed">
+                As required by <strong>CLO-2 and CLO-5</strong>, our system extracts 128-D feature representations and rigorously evaluates multiple candidate classifiers using <strong>5-Fold Cross-Validation, Weighted F1-Scores, Precision, Recall, and Confusion Matrices</strong>. The highest-performing model is automatically deployed for live recognition.
+            </p>
+        </div>
+    </div>
+
+    <!-- Training Action Card -->
+    <div class="bg-white p-6 rounded-2xl border border-slate-200 shadow-sm flex flex-col sm:flex-row justify-between items-center gap-4">
+        <div>
+            <h3 class="font-bold text-sm text-slate-800">Train & Benchmark Classifiers</h3>
+            <p class="text-xs text-slate-500 mt-0.5">Retrain all 4 models and update the Week 7 evaluation report.</p>
+        </div>
+        <form action="{{ url_for('analytics.train_model') }}" method="POST" class="flex items-center space-x-2">
+            <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
+            <select name="source" class="border border-slate-300 rounded-lg px-3 py-2 text-xs bg-white focus:ring-2 focus:ring-iba-blue">
+                <option value="dataset">Classroom Dataset (5 Target Classes)</option>
+                <option value="enrolled" {% if enrolled_count < 2 %}disabled{% endif %}>
+                    Enrolled Students Database ({{ enrolled_count }} ready)
+                </option>
+            </select>
+            <button type="submit" class="btn btn-primary">
+                <i class="fa-solid fa-play mr-1.5"></i> Train & Benchmark Now
+            </button>
+        </form>
+    </div>
+
+    {% if report %}
+    <!-- Model Comparison Table -->
+    <div class="bg-white rounded-2xl border border-slate-200 shadow-sm overflow-hidden">
+        <div class="p-4 border-b border-slate-100 flex justify-between items-center bg-slate-50">
+            <div>
+                <h3 class="font-bold text-xs uppercase tracking-wider text-slate-600">Model Performance Comparison (Test Split &amp; 5-Fold CV)</h3>
+                <span class="text-xs text-slate-500">Evaluated across {{ report.total_samples }} samples and {{ report.total_classes }} classes</span>
+            </div>
+            <span class="bg-emerald-100 text-emerald-600 border border-emerald-300 px-3 py-1 rounded-full text-xs font-bold">
+                <i class="fa-solid fa-trophy mr-1 text-emerald-600"></i> Best Model: {{ report.best_model }}
+            </span>
+        </div>
+
+        <div class="overflow-x-auto">
+            <table class="w-full text-left text-xs">
+                <thead class="bg-slate-100/70 text-slate-600 uppercase font-semibold">
+                    <tr>
+                        <th class="p-3.5">Algorithm Name</th>
+                        <th class="p-3.5">Course Week</th>
+                        <th class="p-3.5">Test Accuracy</th>
+                        <th class="p-3.5">5-Fold CV Accuracy</th>
+                        <th class="p-3.5">Precision</th>
+                        <th class="p-3.5">Recall</th>
+                        <th class="p-3.5">F1-Score</th>
+                        <th class="p-3.5 text-right">Deployment Status</th>
+                    </tr>
+                </thead>
+                <tbody class="divide-y divide-slate-100">
+                    {% for name, metrics in report.models.items() %}
+                    <tr class="hover:bg-slate-50/80 transition {% if name == report.best_model %}bg-emerald-50/40{% endif %}">
+                        <td class="p-3.5 font-bold text-slate-900 flex items-center">
+                            {% if name == report.best_model %}
+                            <i class="fa-solid fa-crown text-iba-gold mr-2 text-sm"></i>
+                            {% else %}
+                            <i class="fa-solid fa-microchip text-slate-400 mr-2"></i>
+                            {% endif %}
+                            {{ name }}
+                        </td>
+                        <td class="p-3.5 text-slate-500 font-mono">
+                            {% if 'SVM' in name %}Week 6 (Kernel SVM)
+                            {% elif 'Neighbors' in name %}Week 4 (KNN, k=3)
+                            {% elif 'Forest' in name %}Week 13 (Ensemble Bagging)
+                            {% else %}Week 5 (Logistic Reg L2){% endif %}
+                        </td>
+                        <td class="p-3.5 font-bold text-slate-800">{{ metrics.accuracy }}%</td>
+                        <td class="p-3.5 font-semibold text-iba-blue">{{ metrics.cv_accuracy }}%</td>
+                        <td class="p-3.5 text-slate-600">{{ metrics.precision }}%</td>
+                        <td class="p-3.5 text-slate-600">{{ metrics.recall }}%</td>
+                        <td class="p-3.5 font-bold text-emerald-600">{{ metrics.f1_score }}%</td>
+                        <td class="p-3.5 text-right">
+                            {% if name == report.best_model %}
+                            <span class="bg-emerald-100 text-emerald-600 border border-emerald-300 px-2 py-0.5 rounded text-xs font-bold">
+                                Active in Production
+                            </span>
+                            {% else %}
+                            <span class="text-slate-400 text-xs">Benchmarked</span>
+                            {% endif %}
+                        </td>
+                    </tr>
+                    {% endfor %}
+                </tbody>
+            </table>
+        </div>
+    </div>
+
+    <!-- Week 7 Confusion Matrix Heatmap -->
+    <div class="bg-white p-6 rounded-2xl border border-slate-200 shadow-sm space-y-4">
+        <div class="flex justify-between items-center pb-2 border-b border-slate-100">
+            <div>
+                <h3 class="font-bold text-sm text-slate-900">Confusion Matrix Heatmap (Week 7 Classifier Evaluation)</h3>
+                <p class="text-xs text-slate-500">True Class vs Predicted Class for {{ report.best_model }}</p>
+            </div>
+            <span class="text-xs text-slate-500">Values on diagonal represent correct predictions</span>
+        </div>
+
+        <div class="overflow-x-auto pt-2 flex justify-center">
+            <div class="inline-block border border-slate-200 rounded-xl overflow-hidden shadow-sm">
+                <table class="text-center text-xs">
+                    <thead>
+                        <tr class="bg-slate-100 text-slate-700">
+                            <th class="p-3 border-r border-slate-200 bg-slate-200 text-slate-900 font-bold">True \ Predicted</th>
+                            {% for cls in report.classes %}
+                            <th class="p-3 border-r border-slate-200 font-bold max-w-[120px] truncate" title="{{ cls }}">{{ cls }}</th>
+                            {% endfor %}
+                        </tr>
+                    </thead>
+                    <tbody>
+                        {% for row in report.confusion_matrix %}
+                        {% set row_idx = loop.index0 %}
+                        <tr class="border-t border-slate-200">
+                            <th class="p-3 bg-slate-100 border-r border-slate-200 font-bold text-left max-w-[140px] truncate" title="{{ report.classes[row_idx] }}">
+                                {{ report.classes[row_idx] }}
+                            </th>
+                            {% for cell in row %}
+                            {% set col_idx = loop.index0 %}
+                            <td class="p-3.5 border-r border-slate-200 font-bold text-sm {% if row_idx == col_idx and cell > 0 %}bg-emerald-100 text-emerald-600{% elif cell > 0 %}bg-rose-100 text-rose-600{% else %}bg-slate-50/50 text-slate-400{% endif %}">
+                                {{ cell }}
+                            </td>
+                            {% endfor %}
+                        </tr>
+                        {% endfor %}
+                    </tbody>
+                </table>
+            </div>
+        </div>
+    </div>
+    {% else %}
+    <!-- Placeholder before training -->
+    <div class="bg-white p-12 rounded-2xl border border-slate-200 shadow-sm text-center space-y-3">
+        <i class="fa-solid fa-chart-column text-4xl text-slate-300"></i>
+        <h3 class="font-bold text-slate-800 text-base">No Benchmark Report Generated Yet</h3>
+        <p class="text-xs text-slate-500 max-w-md mx-auto">
+            Click <strong>"Train & Benchmark Now"</strong> above to extract 128-D features, train SVM, KNN, Random Forest, and Logistic Regression, and generate the Week 7 Confusion Matrix.
+        </p>
+    </div>
+    {% endif %}
+</div>
+{% endblock %}
