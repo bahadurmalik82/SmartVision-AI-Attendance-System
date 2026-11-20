@@ -1,0 +1,449 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>{% block title %}Attenova{% endblock %} - Attenova</title>
+    <link rel="icon" type="image/png" href="{{ url_for('static', filename='img/logo.png') }}">
+    <meta name="csrf-token" content="{{ csrf_token() }}">
+    <!-- Tailwind CSS CDN -->
+    <script src="https://cdn.tailwindcss.com"></script>
+    <!-- Font Awesome Icons -->
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
+    <!-- Fraunces (classical display) + Inter (UI), with system fallbacks -->
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+    <link href="https://fonts.googleapis.com/css2?family=Fraunces:opsz,wght@9..144,700;9..144,800&family=Inter:wght@400;500;600;700;800&display=swap" rel="stylesheet">
+    <!-- Shared UI polish: sidebar, themed modal, subtle animations -->
+    <link rel="stylesheet" href="{{ url_for('static', filename='css/animations.css') }}">
+    <script>
+        tailwind.config = {
+            theme: {
+                extend: {
+                    colors: {
+                        iba: {
+                            blue: '#003366',
+                            gold: '#D4AF37',
+                            dark: '#0A192F',
+                            accent: '#0D9488'
+                        }
+                    }
+                }
+            }
+        }
+    </script>
+</head>
+<body class="bg-slate-50 text-slate-800 min-h-screen font-sans">
+<script>
+    /* Apply remembered appearance prefs + desktop sidebar state
+       before first paint, so nothing flashes. */
+    try {
+        var ibaPrefs = JSON.parse(localStorage.getItem('iba-prefs') || '{}');
+        if (ibaPrefs.density === 'compact') document.body.classList.add('iba-compact');
+        if (ibaPrefs.reduceMotion) document.body.classList.add('iba-reduce-motion');
+        if (window.matchMedia('(min-width: 768px)').matches) {
+            var ibaExplicit = localStorage.getItem('iba-sidebar-collapsed');
+            if (ibaExplicit === '1') {
+                document.body.classList.add('iba-collapsed');
+            } else if (ibaExplicit === null && ibaPrefs.sidebarDefault === 'collapsed') {
+                document.body.classList.add('iba-collapsed');
+            }
+        }
+    } catch (e) { /* private mode etc. — defaults just stay */ }
+</script>
+
+    <!-- ============ Top bar — ALWAYS visible, NEVER collapses (v5) ============
+         The Attenova logo + name live here, separate from the sidebar, so
+         closing the sidebar can never break or hide the brand. -->
+    <header class="iba-topbar">
+        <button id="ibaMobileMenuBtn" type="button" aria-label="Open menu"
+                class="btn btn-ghost md:hidden w-9 h-9">
+            <i class="fa-solid fa-bars text-lg"></i>
+        </button>
+        <a href="{{ url_for('landing.index') }}" class="iba-topbar-brand">
+            <span class="iba-topbar-logo">
+                <img src="{{ url_for('static', filename='img/logo.png') }}" alt="Attenova logo"
+                     onerror="this.remove(); var f = document.getElementById('ibaTopLogoFallback'); if (f) { f.style.display = 'flex'; }">
+                <span id="ibaTopLogoFallback" style="display: none;" class="w-full h-full items-center justify-center">
+                    <i class="fa-solid fa-graduation-cap text-iba-gold text-xl"></i>
+                </span>
+            </span>
+            <span class="iba-topbar-text">
+                <span class="iba-topbar-name">Attenova</span>
+                <span class="iba-topbar-sub">Smart AI Attendance</span>
+            </span>
+        </a>
+        <span class="iba-topbar-spacer"></span>
+        <span id="ibaTopClock" class="iba-topbar-clock hidden lg:block" title="Today's date and time"></span>
+        {% if current_user.is_authenticated %}
+        <span class="iba-topbar-user hidden sm:flex">
+            <i class="fa-solid fa-chalkboard-user text-iba-gold"></i>
+            <span>{{ current_user.name }}</span>
+        </span>
+        {% endif %}
+    </header>
+
+    <!-- ============ Sidebar — a SEPARATE rounded card (v5) ============
+         It is not part of the top bar any more. It collapses and reopens
+         on its own, and the brand above never moves. -->
+    <aside id="ibaSidebar" class="iba-sidebar" aria-label="Main navigation">
+        <button id="ibaSidebarCloseBtn" type="button" title="Close menu"
+                class="btn btn-ghost md:hidden w-8 h-8 self-end m-2"
+                aria-label="Close menu">
+            <i class="fa-solid fa-xmark"></i>
+        </button>
+
+        <!-- Sidebar head row: the collapse button lives here now (v7),
+             not on the top bar. Same id, same JS, same behaviour. -->
+        <div class="iba-sidebar-head">
+            <span class="iba-sidebar-head-label">Attenova</span>
+            <button id="ibaCollapseBtn" type="button" title="Collapse sidebar"
+                    class="btn btn-ghost hidden md:flex w-9 h-9"
+                    aria-label="Collapse sidebar">
+                <i id="ibaCollapseIcon" class="fa-solid fa-angles-left text-sm"></i>
+            </button>
+        </div>
+
+        <nav class="flex-1 overflow-y-auto py-3">
+            <p class="iba-nav-section px-5 pb-2 text-xs font-bold uppercase tracking-widest text-slate-400">Menu</p>
+            {% if current_user.is_authenticated %}
+            <a href="{{ url_for('dashboard.index') }}" title="Dashboard" data-tip="Dashboard"
+               class="iba-nav-link {{ 'iba-active' if request.endpoint == 'dashboard.index' else '' }}
+               {% if request.endpoint == 'dashboard.index' %}aria-current="page"{% endif %}">
+                <i class="fa-solid fa-gauge"></i><span class="iba-nav-label">Dashboard</span></a>
+            <a href="{{ url_for('timetable.index') }}" title="Timetable" data-tip="Timetable"
+               class="iba-nav-link {{ 'iba-active' if request.endpoint == 'timetable.index' else '' }}
+               {% if request.endpoint == 'timetable.index' %}aria-current="page"{% endif %}">
+                <i class="fa-solid fa-calendar-days"></i><span class="iba-nav-label">Timetable</span></a>
+            <a href="{{ url_for('cameras.index') }}" title="Cameras" data-tip="Cameras"
+               class="iba-nav-link {{ 'iba-active' if request.endpoint == 'cameras.index' else '' }}
+               {% if request.endpoint == 'cameras.index' %}aria-current="page"{% endif %}">
+                <i class="fa-solid fa-video"></i><span class="iba-nav-label">Cameras</span></a>
+            <a href="{{ url_for('students.index') }}" title="Students" data-tip="Students"
+               class="iba-nav-link {{ 'iba-active' if request.endpoint == 'students.index' else '' }}
+               {% if request.endpoint == 'students.index' %}aria-current="page"{% endif %}">
+                <i class="fa-solid fa-user-plus"></i><span class="iba-nav-label">Students</span></a>
+            <a href="{{ url_for('analytics.index') }}" title="Analytics" data-tip="Analytics"
+               class="iba-nav-link {{ 'iba-active' if request.endpoint == 'analytics.index' else '' }}
+               {% if request.endpoint == 'analytics.index' %}aria-current="page"{% endif %}">
+                <i class="fa-solid fa-chart-pie"></i><span class="iba-nav-label">Analytics</span></a>
+            <a href="{{ url_for('analytics.benchmark') }}" title="ML Models" data-tip="ML Models"
+               class="iba-nav-link {{ 'iba-active' if request.endpoint == 'analytics.benchmark' else '' }}
+               {% if request.endpoint == 'analytics.benchmark' %}aria-current="page"{% endif %}">
+                <i class="fa-solid fa-brain"></i><span class="iba-nav-label">ML Models</span></a>
+            <a href="{{ url_for('analytics.defaulters') }}" title="Defaulters below 75%" data-tip="&lt;75% Defaulters"
+               class="iba-nav-link {{ 'iba-active' if request.endpoint == 'analytics.defaulters' else '' }}
+               {% if request.endpoint == 'analytics.defaulters' %}aria-current="page"{% endif %}">
+                <i class="fa-solid fa-triangle-exclamation"></i><span class="iba-nav-label">&lt;75% Defaulters</span></a>
+            {% endif %}
+
+            <div class="mx-4 my-3 border-t border-white/10"></div>
+            <p class="iba-nav-section px-5 pb-2 text-xs font-bold uppercase tracking-widest text-slate-400">Account</p>
+            <a href="{{ url_for('student.login') }}" title="Student Portal — CMS ID login" data-tip="Student Portal"
+               class="iba-nav-link">
+                <i class="fa-solid fa-magnifying-glass"></i><span class="iba-nav-label">Student Portal</span></a>
+            <a href="{{ url_for('settings.index') }}" title="Settings" data-tip="Settings"
+               class="iba-nav-link {{ 'iba-active' if request.endpoint == 'settings.index' else '' }}
+               {% if request.endpoint == 'settings.index' %}aria-current="page"{% endif %}">
+                <i class="fa-solid fa-gear"></i><span class="iba-nav-label">Settings</span></a>
+            {% if current_user.is_authenticated %}
+            <a href="{{ url_for('auth.logout') }}" title="Logout" data-tip="Logout" class="iba-nav-link iba-danger">
+                <i class="fa-solid fa-right-from-bracket"></i><span class="iba-nav-label">Logout</span></a>
+            {% else %}
+            <a href="{{ url_for('auth.login') }}" title="Teacher Login" data-tip="Teacher Login"
+               class="iba-nav-link {{ 'iba-active' if request.endpoint == 'auth.login' else '' }}
+               {% if request.endpoint == 'auth.login' %}aria-current="page"{% endif %}">
+                <i class="fa-solid fa-right-to-bracket"></i><span class="iba-nav-label">Teacher Login</span></a>
+            {% endif %}
+        </nav>
+
+        <!-- Developer signature (v7): the sidebar bottom shows who
+             built Attenova — photo, name and role — not the teacher. -->
+        <div class="p-3 border-t border-white/10">
+            <div class="iba-dev-signature">
+                <img src="{{ url_for('static', filename='img/developer.jpg') }}" alt="Bahadur Ali, developer of Attenova" class="iba-dev-photo" onerror="this.style.display='none'">
+                <div class="iba-dev-text">
+                    <span class="iba-dev-by">Developed by</span>
+                    <span class="iba-dev-name">Bahadur Ali</span>
+                    <span class="iba-dev-role">Aspiring ML Engineer</span>
+                </div>
+            </div>
+        </div>
+    </aside>
+    <div id="ibaSidebarBackdrop" class="iba-sidebar-backdrop" aria-hidden="true"></div>
+    <!-- Collapsed-sidebar tooltip: one fixed element, shown by JS while
+         the mouse stays on a sidebar link (v5). It is NOT clipped by
+         the sidebar, and it does not disappear until the mouse leaves. -->
+    <div id="ibaNavTip" class="iba-nav-tip" role="tooltip" aria-hidden="true"></div>
+
+    <!-- ============ Main column ============ -->
+    <div class="iba-main">
+        <div class="iba-page flex-grow w-full flex flex-col">
+            <!-- Flash Notifications Container (themed banners; text/logic unchanged) -->
+            <div class="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 mt-4 w-full">
+                {% with messages = get_flashed_messages(with_categories=true) %}
+                    {% if messages %}
+                        {% for category, message in messages %}
+                            <div class="iba-flash p-4 mb-3 rounded-lg border text-sm flex items-center justify-between {% if category == 'danger' %}bg-rose-50 border-rose-200 text-rose-600{% elif category == 'success' %}bg-emerald-50 border-emerald-200 text-emerald-600{% elif category == 'warning' %}bg-amber-50 border-yellow-200 text-slate-700{% else %}bg-slate-100 border-slate-200 text-slate-700{% endif %}">
+                                <div>
+                                    <i class="fa-solid {% if category == 'danger' %}fa-circle-xmark{% elif category == 'success' %}fa-circle-check{% else %}fa-circle-info{% endif %} mr-2"></i>
+                                    {{ message }}
+                                </div>
+                            </div>
+                        {% endfor %}
+                    {% endif %}
+                {% endwith %}
+            </div>
+
+            <!-- Main Content Block -->
+            <main class="flex-grow max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-6 w-full">
+                {% block content %}{% endblock %}
+            </main>
+
+            <!-- Footer (v7) -->
+            <footer class="iba-footer">
+                <p><span class="iba-footer-brand">Attenova</span> &mdash; Smart AI Attendance <span class="iba-footer-sep">&middot;</span> Crafted by <b>Bahadur Ali</b> <span class="iba-footer-sep">&middot;</span> v7.0</p>
+                <p><a href="{{ url_for('dashboard.index') }}">Dashboard</a> <span class="iba-footer-sep">&middot;</span> <a href="{{ url_for('settings.index') }}">Settings</a></p>
+            </footer>
+        </div>
+    </div>
+
+    <!-- ============ ONE reusable themed modal (replaces native alert/confirm) ============ -->
+    <div id="ibaModalBackdrop" class="iba-modal-backdrop iba-hidden" role="dialog" aria-modal="true" aria-labelledby="ibaModalTitle">
+        <div class="iba-modal">
+            <div class="iba-modal-header">
+                <span class="iba-modal-icon"><i id="ibaModalIcon" class="fa-solid fa-circle-info"></i></span>
+                <h3 id="ibaModalTitle">Notice</h3>
+                <button id="ibaModalCloseX" type="button" class="text-slate-300 hover:text-white transition" aria-label="Close">
+                    <i class="fa-solid fa-xmark"></i>
+                </button>
+            </div>
+            <div class="iba-modal-body" id="ibaModalMessage"></div>
+            <div class="iba-modal-footer">
+                <button id="ibaModalCancelBtn" type="button"
+                        class="btn btn-secondary">Cancel</button>
+                <button id="ibaModalOkBtn" type="button"
+                        class="btn btn-primary">OK</button>
+            </div>
+        </div>
+    </div>
+
+    <script>
+    (function () {
+        'use strict';
+
+        /* ---------- Sidebar: collapse (desktop) / slide-in (mobile) ---------- */
+        var body = document.body;
+        var collapseBtn = document.getElementById('ibaCollapseBtn');
+        var collapseIcon = document.getElementById('ibaCollapseIcon');
+        var mobileBtn = document.getElementById('ibaMobileMenuBtn');
+        var closeBtn = document.getElementById('ibaSidebarCloseBtn');
+        var backdrop = document.getElementById('ibaSidebarBackdrop');
+
+        function syncCollapseIcon() {
+            if (!collapseIcon) return;
+            collapseIcon.className = body.classList.contains('iba-collapsed')
+                ? 'fa-solid fa-angles-right text-sm'
+                : 'fa-solid fa-angles-left text-sm';
+            if (collapseBtn) {
+                collapseBtn.title = body.classList.contains('iba-collapsed')
+                    ? 'Expand sidebar' : 'Collapse sidebar';
+            }
+        }
+        function toggleCollapse() {
+            body.classList.toggle('iba-collapsed');
+            try {
+                localStorage.setItem('iba-sidebar-collapsed',
+                    body.classList.contains('iba-collapsed') ? '1' : '0');
+            } catch (e) { /* private mode — state just won't persist */ }
+            syncCollapseIcon();
+            hideNavTip();
+        }
+        function openMobileSidebar() { body.classList.add('iba-sidebar-open'); }
+        function closeMobileSidebar() { body.classList.remove('iba-sidebar-open'); }
+
+        if (collapseBtn) collapseBtn.addEventListener('click', toggleCollapse);
+        if (mobileBtn) mobileBtn.addEventListener('click', openMobileSidebar);
+        if (closeBtn) closeBtn.addEventListener('click', closeMobileSidebar);
+        if (backdrop) backdrop.addEventListener('click', closeMobileSidebar);
+        syncCollapseIcon();
+
+        /* ---------- Collapsed-sidebar tooltip (v5) ----------
+           One fixed tooltip, positioned next to the hovered link.
+           It stays visible for as long as the mouse is on the link
+           (mouseleave hides it), and it is never clipped by the
+           sidebar because it lives outside it. */
+        var navTip = document.getElementById('ibaNavTip');
+        function hideNavTip() {
+            if (!navTip) return;
+            navTip.classList.remove('iba-nav-tip-visible');
+            navTip.setAttribute('aria-hidden', 'true');
+        }
+        function showNavTip(link) {
+            if (!navTip) return;
+            if (!body.classList.contains('iba-collapsed')) return;
+            if (window.matchMedia('(max-width: 767px)').matches) return;
+            var label = link.getAttribute('data-tip') || link.getAttribute('title') || '';
+            if (!label) return;
+            navTip.textContent = label;
+            var rect = link.getBoundingClientRect();
+            navTip.style.top = (rect.top + rect.height / 2) + 'px';
+            navTip.style.left = (rect.right + 12) + 'px';
+            navTip.classList.add('iba-nav-tip-visible');
+            navTip.setAttribute('aria-hidden', 'false');
+        }
+        document.querySelectorAll('.iba-nav-link').forEach(function (link) {
+            link.addEventListener('mouseenter', function () { showNavTip(link); });
+            link.addEventListener('mouseleave', hideNavTip);
+            link.addEventListener('focus', function () { showNavTip(link); });
+            link.addEventListener('blur', hideNavTip);
+            link.addEventListener('click', hideNavTip);
+        });
+        window.addEventListener('scroll', hideNavTip, true);
+
+        /* ---------- Themed modal: showIbaAlert / showIbaConfirm ---------- */
+        var modalBackdrop = document.getElementById('ibaModalBackdrop');
+        var modalTitle = document.getElementById('ibaModalTitle');
+        var modalMessage = document.getElementById('ibaModalMessage');
+        var modalIcon = document.getElementById('ibaModalIcon');
+        var modalOkBtn = document.getElementById('ibaModalOkBtn');
+        var modalCancelBtn = document.getElementById('ibaModalCancelBtn');
+        var modalCloseX = document.getElementById('ibaModalCloseX');
+        var modalOnConfirm = null;
+        var modalOnClose = null;
+        var modalIsConfirm = false;
+
+        var ICONS = {
+            info: 'fa-solid fa-circle-info',
+            success: 'fa-solid fa-circle-check',
+            warning: 'fa-solid fa-triangle-exclamation',
+            error: 'fa-solid fa-circle-xmark'
+        };
+
+        function openIbaModal(opts) {
+            modalTitle.textContent = opts.title || 'Notice';
+            modalMessage.textContent = opts.message || '';
+            modalIcon.className = ICONS[opts.type] || ICONS.info;
+            modalOkBtn.textContent = opts.confirmText || 'OK';
+            modalOkBtn.className = 'btn ' +
+                (opts.type === 'error' || opts.type === 'danger'
+                    ? 'btn-danger' : 'btn-primary');
+            modalCancelBtn.style.display = opts.showCancel ? '' : 'none';
+            modalIsConfirm = !!opts.showCancel;
+            modalOnConfirm = opts.onConfirm || null;
+            modalOnClose = opts.onClose || null;
+            modalBackdrop.classList.remove('iba-hidden');
+            modalOkBtn.focus();
+        }
+        function closeIbaModal(confirmed) {
+            modalBackdrop.classList.add('iba-hidden');
+            if (confirmed && modalOnConfirm) {
+                var cb = modalOnConfirm; modalOnConfirm = null; modalOnClose = null; cb();
+            } else if (!confirmed && modalOnClose) {
+                var cb2 = modalOnClose; modalOnConfirm = null; modalOnClose = null; cb2();
+            } else {
+                modalOnConfirm = null; modalOnClose = null;
+            }
+        }
+
+        window.showIbaAlert = function (title, message, type, onClose) {
+            openIbaModal({ title: title, message: message, type: type || 'info',
+                           showCancel: false, confirmText: 'OK', onClose: onClose || null });
+        };
+        window.showIbaConfirm = function (title, message, confirmText, onConfirm) {
+            openIbaModal({ title: title, message: message, type: 'warning',
+                           showCancel: true, confirmText: confirmText || 'Confirm',
+                           onConfirm: onConfirm || null });
+        };
+
+        modalOkBtn.addEventListener('click', function () { closeIbaModal(true); });
+        modalCancelBtn.addEventListener('click', function () { closeIbaModal(false); });
+        modalCloseX.addEventListener('click', function () { closeIbaModal(false); });
+        modalBackdrop.addEventListener('click', function (e) {
+            if (e.target === modalBackdrop) closeIbaModal(false);
+        });
+        document.addEventListener('keydown', function (e) {
+            if (e.key === 'Escape' && !modalBackdrop.classList.contains('iba-hidden')) {
+                closeIbaModal(false);
+            }
+        });
+
+        /* Safety net: a native browser popup must never appear again.
+           Any leftover native popup call is routed through the themed modal.
+           The confirm replacement returns false so no guarded action
+           runs unconfirmed. */
+        window.alert = function (message) {
+            window.showIbaAlert('Notice', String(message));
+        };
+        window.confirm = function (message) {
+            window.showIbaAlert('Confirmation needed', String(message), 'warning');
+            return false;
+        };
+
+        /* ---------- Themed confirm for delete/stop forms ---------- */
+        document.querySelectorAll('form[data-iba-confirm]').forEach(function (form) {
+            form.addEventListener('submit', function (e) {
+                if (form.dataset.ibaConfirmed === '1') return; /* already confirmed */
+                e.preventDefault();
+                window.showIbaConfirm(
+                    form.dataset.ibaConfirmTitle || 'Are you sure?',
+                    form.dataset.ibaConfirmMessage || 'This action cannot be undone.',
+                    form.dataset.ibaConfirmText || 'Confirm',
+                    function () {
+                        form.dataset.ibaConfirmed = '1';
+                        form.submit(); /* native submit bypasses this handler */
+                    }
+                );
+            });
+        });
+
+        /* ---------- Top-bar live clock (v7, frontend only) ---------- */
+        var topClock = document.getElementById('ibaTopClock');
+        function tickTopClock() {
+            if (!topClock) return;
+            var now = new Date();
+            var days = ['Sun', 'Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat'];
+            var months = ['Jan', 'Feb', 'Mar', 'Apr', 'May', 'Jun', 'Jul', 'Aug', 'Sep', 'Oct', 'Nov', 'Dec'];
+            var h = now.getHours(), m = now.getMinutes();
+            var ap = h >= 12 ? 'PM' : 'AM';
+            h = h % 12 || 12;
+            topClock.innerHTML = '<i class="fa-solid fa-clock"></i>' +
+                days[now.getDay()] + ', ' + now.getDate() + ' ' + months[now.getMonth()] +
+                ' &middot; ' + h + ':' + (m < 10 ? '0' : '') + m + ' ' + ap;
+        }
+        if (topClock) { tickTopClock(); setInterval(tickTopClock, 30000); }
+
+        /* ---------- Keyboard shortcuts (v7): Alt+1..5 ----------
+           Alt keeps them out of the way of typing. They do nothing
+           while the focus is in a field. */
+        var IBA_SHORTCUTS = {
+            '1': '{{ url_for('dashboard.index') }}',
+            '2': '{{ url_for('timetable.index') }}',
+            '3': '{{ url_for('students.index') }}',
+            '4': '{{ url_for('analytics.index') }}',
+            '5': '{{ url_for('settings.index') }}'
+        };
+        document.addEventListener('keydown', function (e) {
+            if (!e.altKey || e.ctrlKey || e.metaKey) return;
+            var dest = IBA_SHORTCUTS[e.key];
+            if (!dest) return;
+            var tag = (e.target && e.target.tagName) || '';
+            if (tag === 'INPUT' || tag === 'TEXTAREA' || tag === 'SELECT' ||
+                (e.target && e.target.isContentEditable)) return;
+            e.preventDefault();
+            window.location.href = dest;
+        });
+
+        /* ---------- Flash banners: gentle auto-dismiss after 6 seconds ---------- */
+        document.querySelectorAll('.iba-flash').forEach(function (banner) {
+            setTimeout(function () {
+                banner.classList.add('iba-flash-out');
+                setTimeout(function () { banner.remove(); }, 450);
+            }, 6000);
+        });
+    })();
+    </script>
+
+    {% block scripts %}{% endblock %}
+</body>
+</html>

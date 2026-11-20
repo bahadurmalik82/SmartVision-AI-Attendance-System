@@ -1,0 +1,301 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Attenova — Smart AI Attendance</title>
+    <meta name="description" content="Attenova is an AI-powered smart attendance and duration tracking system. Face recognition, live duration tracking, ML benchmarks and defaulter prediction — built for teachers and students.">
+    <link rel="icon" type="image/png" href="{{ url_for('static', filename='img/logo.png') }}">
+    <script src="https://cdn.tailwindcss.com"></script>
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+    <link href="https://fonts.googleapis.com/css2?family=Fraunces:opsz,wght@9..144,700;9..144,800&family=Inter:wght@400;500;600;700;800&display=swap" rel="stylesheet">
+    <link rel="stylesheet" href="{{ url_for('static', filename='css/landing.css') }}">
+    <script>
+        tailwind.config = {
+            theme: {
+                extend: {
+                    colors: {
+                        iba: { blue: '#003366', gold: '#D4AF37', dark: '#0A192F', accent: '#0D9488' }
+                    }
+                }
+            }
+        }
+    </script>
+</head>
+<body class="landing-body">
+    <!-- ============ Top navigation ============ -->
+    <header class="landing-nav">
+        <a href="{{ url_for('landing.index') }}" class="landing-brand">
+            <img src="{{ url_for('static', filename='img/logo.png') }}" alt="Attenova logo" class="landing-logo" onerror="this.style.display='none'">
+            <span class="landing-brand-text">
+                <span class="landing-brand-name">Attenova</span>
+                <span class="landing-brand-sub">Smart AI Attendance</span>
+            </span>
+        </a>
+        <nav class="landing-links" aria-label="Main navigation">
+            <a href="#features">Features</a>
+            <a href="#how-it-works">How it works</a>
+            <a href="#for-students">For Students</a>
+            <a href="#for-teachers">For Teachers</a>
+        </nav>
+        <div class="landing-nav-actions">
+            <a href="{{ url_for('auth.login') }}" class="btn btn-primary btn-sm"><i class="fa-solid fa-right-to-bracket mr-1"></i> Sign in</a>
+        </div>
+    </header>
+
+    <!-- ============ Hero ============ -->
+    <main>
+    <section class="hero">
+        <div class="blob blob-1" aria-hidden="true"></div>
+        <div class="blob blob-2" aria-hidden="true"></div>
+        <div class="blob blob-3" aria-hidden="true"></div>
+        <div class="hero-inner">
+            <p class="hero-eyebrow reveal"><i class="fa-solid fa-graduation-cap"></i> AI-Powered Attendance &middot; Face Recognition</p>
+            <h1 class="hero-title reveal">Attendance that takes<br>itself — <span class="hero-gold">accurately.</span></h1>
+            <p class="hero-sub reveal">Attenova recognises every student by face, tracks how long each one is actually present in class, and tells the teacher — and the student — exactly where they stand. No registers. No proxies. No guessing.</p>
+
+            <!-- The two doors -->
+            <div class="cta-grid">
+                <a href="{{ url_for('student.login') }}" class="cta-card cta-student reveal">
+                    <span class="cta-icon"><i class="fa-solid fa-user-graduate"></i></span>
+                    <span class="cta-title">I am a Student</span>
+                    <span class="cta-text">Log in with your CMS ID and password to see your attendance in every subject — absences, dates, and exactly what you need to do to stay eligible.</span>
+                    <span class="cta-go">Check my attendance <i class="fa-solid fa-arrow-right"></i></span>
+                </a>
+                <a href="{{ url_for('auth.login') }}" class="cta-card cta-teacher reveal">
+                    <span class="cta-icon"><i class="fa-solid fa-chalkboard-user"></i></span>
+                    <span class="cta-title">I am a Teacher</span>
+                    <span class="cta-text">Sign in to run live attendance, manage your timetable and cameras, enrol students, and see analytics, defaulters and ML model results.</span>
+                    <span class="cta-go">Open my faculty portal <i class="fa-solid fa-arrow-right"></i></span>
+                </a>
+            </div>
+            <p class="hero-demo reveal">Live demo — teacher: <strong>demo@iba-suk.edu.pk</strong> / <strong>Demo1234</strong> &middot; student: CMS ID <strong>CMS-0001</strong> (password is printed when you run <code>seed_demo.py</code> and shown on the Students page). New teacher? <a href="{{ url_for('auth.register') }}">Create your account</a>.</p>
+        </div>
+    </section>
+
+    <!-- ============ Stats band ============ -->
+    <section class="stats reveal" aria-label="System facts">
+        <div class="stat"><span class="stat-num" data-count="4">0</span><span class="stat-label">ML models benchmarked<br>SVM &middot; KNN &middot; Random Forest &middot; Logistic Regression</span></div>
+        <div class="stat"><span class="stat-num" data-count="128">0</span><span class="stat-label">-D face embeddings<br>per enrolled student</span></div>
+        <div class="stat"><span class="stat-num" data-count="10">0</span><span class="stat-label">-minute tracking blocks<br>of real presence in class</span></div>
+        <div class="stat"><span class="stat-num" data-count="75">0</span><span class="stat-label">% attendance needed<br>for final-exam eligibility</span></div>
+    </section>
+
+    <!-- ============ Features ============ -->
+    <section id="features" class="section">
+        <h2 class="section-title reveal">Everything a classroom needs</h2>
+        <p class="section-sub reveal">Built for a real lecture hall — a teacher's laptop camera or a phone on the wall is enough.</p>
+        <div class="feature-grid">
+            <article class="feature-card reveal">
+                <span class="feature-icon"><i class="fa-solid fa-face-smile"></i></span>
+                <h3>Face Recognition</h3>
+                <p>128-D HOG face embeddings identify each enrolled student from 3-angle photos, with a blur check and anti-spoof liveness detection.</p>
+            </article>
+            <article class="feature-card reveal">
+                <span class="feature-icon"><i class="fa-solid fa-stopwatch"></i></span>
+                <h3>Live Duration Tracking</h3>
+                <p>Presence is tracked in 10-minute blocks from the moment class starts until it ends — not just a single snapshot at the door.</p>
+            </article>
+            <article class="feature-card reveal">
+                <span class="feature-icon"><i class="fa-solid fa-brain"></i></span>
+                <h3>ML Model Benchmark</h3>
+                <p>SVM, KNN, Random Forest and Logistic Regression are benchmarked with 5-fold cross-validation, confusion matrices, precision, recall and F1-score.</p>
+            </article>
+            <article class="feature-card reveal">
+                <span class="feature-icon"><i class="fa-solid fa-triangle-exclamation"></i></span>
+                <h3>Defaulter Prediction</h3>
+                <p>K-Means clusters students into Star, Inconsistent and At-Risk, and a Logistic Regression model flags students heading below the 75% eligibility line.</p>
+            </article>
+            <article class="feature-card reveal">
+                <span class="feature-icon"><i class="fa-solid fa-chart-pie"></i></span>
+                <h3>Analytics &amp; Reports</h3>
+                <p>Filter attendance by course, section, date or student, correct a record manually, and export Excel reports for the exam office.</p>
+            </article>
+            <article class="feature-card reveal">
+                <span class="feature-icon"><i class="fa-solid fa-user-graduate"></i></span>
+                <h3>Student Self-Service</h3>
+                <p>Every student gets a CMS ID and password, logs in, and sees their own attendance per subject — absences with dates, and what to attend to recover.</p>
+            </article>
+        </div>
+    </section>
+
+    <!-- ============ How it works ============ -->
+    <section id="how-it-works" class="section section-alt">
+        <h2 class="section-title reveal">How it works</h2>
+        <p class="section-sub reveal">Three steps, and the class runs itself.</p>
+        <div class="steps">
+            <article class="step reveal">
+                <span class="step-num">1</span>
+                <h3>Teacher sets up once</h3>
+                <p>Register, add your weekly timetable, connect a camera, and enrol students — one by one or by CSV. Each student gets a CMS ID and password automatically.</p>
+            </article>
+            <article class="step reveal">
+                <span class="step-num">2</span>
+                <h3>Class runs itself</h3>
+                <p>The scheduler starts monitoring exactly when class starts. The camera recognises faces, checks liveness, and logs presence in 10-minute blocks until class ends.</p>
+            </article>
+            <article class="step reveal">
+                <span class="step-num">3</span>
+                <h3>Everyone sees the truth</h3>
+                <p>The teacher sees analytics and defaulters; the student logs in with their CMS ID and sees their own attendance, absences and what to attend to stay eligible.</p>
+            </article>
+        </div>
+    </section>
+
+    <!-- ============ For students ============ -->
+    <section id="for-students" class="section">
+        <div class="split">
+            <div class="reveal">
+                <h2 class="section-title left">For Students</h2>
+                <p class="section-sub left">No more "sir, what is my attendance?" — check it yourself, any time.</p>
+                <ul class="check-list">
+                    <li><i class="fa-solid fa-circle-check"></i> Your attendance in <strong>every subject</strong>, with percentages and progress bars.</li>
+                    <li><i class="fa-solid fa-circle-check"></i> Every absence listed with <strong>date and class time</strong>.</li>
+                    <li><i class="fa-solid fa-circle-check"></i> Exactly <strong>how many classes to attend</strong> to reach 75% — or how many you can miss and stay safe.</li>
+                    <li><i class="fa-solid fa-circle-check"></i> Your weekly timetable for your section.</li>
+                    <li><i class="fa-solid fa-circle-check"></i> Change your own password (old password required). Forgot it? Your teacher has it.</li>
+                </ul>
+                <a href="{{ url_for('student.login') }}" class="btn btn-primary">Student login <i class="fa-solid fa-arrow-right ml-1"></i></a>
+            </div>
+            <div class="mock reveal" aria-hidden="true">
+                <div class="mock-card">
+                    <p class="mock-name">Ahmed Ali</p>
+                    <p class="mock-id">CMS-0001 &middot; K21-0145</p>
+                    <p class="mock-big">96%</p>
+                    <p class="mock-label">Overall attendance</p>
+                    <div class="mock-bar"><span style="width: 96%"></span></div>
+                    <p class="mock-row"><span>Mathematics</span><strong>96%</strong></p>
+                    <p class="mock-row"><span>Data Structures</span><strong>88%</strong></p>
+                    <p class="mock-note"><i class="fa-solid fa-circle-check"></i> You are safe in every subject.</p>
+                </div>
+            </div>
+        </div>
+    </section>
+
+    <!-- ============ For teachers ============ -->
+    <section id="for-teachers" class="section section-alt">
+        <div class="split reverse">
+            <div class="reveal">
+                <h2 class="section-title left">For Teachers</h2>
+                <p class="section-sub left">You own your class. Nobody above you, nobody else's data in your way.</p>
+                <ul class="check-list">
+                    <li><i class="fa-solid fa-circle-check"></i> Live monitoring with your laptop camera or a phone (IP Webcam).</li>
+                    <li><i class="fa-solid fa-circle-check"></i> Automatic start and stop with your timetable.</li>
+                    <li><i class="fa-solid fa-circle-check"></i> Manual correction when the camera gets it wrong — with a reason, logged.</li>
+                    <li><i class="fa-solid fa-circle-check"></i> Defaulter list, email warnings, Excel export, CSV import of a whole class.</li>
+                    <li><i class="fa-solid fa-circle-check"></i> Every student's CMS ID and password at a glance, with one-click password reset.</li>
+                </ul>
+                <a href="{{ url_for('auth.login') }}" class="btn btn-gold">Teacher login <i class="fa-solid fa-arrow-right ml-1"></i></a>
+                <a href="{{ url_for('auth.register') }}" class="btn btn-secondary">Create a teacher account</a>
+            </div>
+            <div class="mock reveal" aria-hidden="true">
+                <div class="mock-card">
+                    <p class="mock-name">Today's class</p>
+                    <p class="mock-id">Mathematics &middot; Section B</p>
+                    <p class="mock-big">24<span class="mock-small"> / 30 present</span></p>
+                    <p class="mock-label">Live now &middot; 09:00 – 10:40</p>
+                    <div class="mock-bar"><span style="width: 80%"></span></div>
+                    <p class="mock-row"><span>Present</span><strong>24</strong></p>
+                    <p class="mock-row"><span>Absent</span><strong>6</strong></p>
+                    <p class="mock-note mock-warn"><i class="fa-solid fa-triangle-exclamation"></i> 3 students below 75% this week.</p>
+                </div>
+            </div>
+        </div>
+    </section>
+
+    <!-- ============ Security ============ -->
+    <section class="section">
+        <div class="security reveal">
+            <span class="feature-icon"><i class="fa-solid fa-shield-halved"></i></span>
+            <div>
+                <h2>Your data stays yours</h2>
+                <p>Passwords are bcrypt-hashed, every form is CSRF-protected, logins lock out after 5 failed attempts, and each teacher only ever sees their own students. Student passwords are visible only to their own teacher — so a forgotten password is one question away, not a reset email into the void.</p>
+            </div>
+        </div>
+    </section>
+    </main>
+
+    <!-- ============ Footer ============ -->
+    <footer class="landing-footer">
+        <div class="footer-inner">
+            <div>
+                <p class="footer-brand">Attenova</p>
+                <p class="footer-text">AI-Powered Smart University Attendance &amp; Duration Tracking System.</p>
+            </div>
+            <div>
+                <p class="footer-text">AI-Powered Smart University Attendance<br>&amp; Duration Tracking System</p>
+            </div>
+            <div>
+                <p class="footer-text"><a href="{{ url_for('student.login') }}">Student login</a><br><a href="{{ url_for('auth.login') }}">Teacher login</a><br><a href="{{ url_for('auth.register') }}">Register as a teacher</a></p>
+            </div>
+        </div>
+        <p class="footer-copy">&copy; 2026 Attenova &middot; Smart AI Attendance &middot; Crafted by Bahadur Ali &middot; v7.0</p>
+    </footer>
+
+<script>
+(function () {
+    'use strict';
+    /* Page-change fade (v7): when a login link is clicked, the page
+       fades out briefly (300ms) and the login page fades in on load.
+       Reduced-motion users and modified clicks navigate instantly,
+       and the link always works even if this script fails. */
+    var reduceMotion = window.matchMedia('(prefers-reduced-motion: reduce)').matches;
+    if (!reduceMotion) {
+        document.querySelectorAll('a[href$="/auth/login"], a[href$="/auth/register"], a[href$="/student/login"]').forEach(function (link) {
+            link.addEventListener('click', function (e) {
+                if (e.defaultPrevented || e.button !== 0 || e.ctrlKey || e.metaKey || e.shiftKey || e.altKey) return;
+                e.preventDefault();
+                document.body.classList.add('iba-page-leaving');
+                var url = link.getAttribute('href');
+                setTimeout(function () { window.location.href = url; }, 300);
+            });
+        });
+    }
+    /* Scroll reveal: elements fade up as they enter the viewport. */
+    var revealEls = document.querySelectorAll('.reveal');
+    if ('IntersectionObserver' in window) {
+        var observer = new IntersectionObserver(function (entries) {
+            entries.forEach(function (entry) {
+                if (entry.isIntersecting) {
+                    entry.target.classList.add('revealed');
+                    observer.unobserve(entry.target);
+                }
+            });
+        }, { threshold: 0.12 });
+        revealEls.forEach(function (el) { observer.observe(el); });
+    } else {
+        revealEls.forEach(function (el) { el.classList.add('revealed'); });
+    }
+
+    /* Animated stat counters. */
+    var counters = document.querySelectorAll('.stat-num[data-count]');
+    function animateCounter(el) {
+        var target = parseInt(el.getAttribute('data-count'), 10);
+        var duration = 1200, start = null;
+        function step(ts) {
+            if (!start) start = ts;
+            var p = Math.min((ts - start) / duration, 1);
+            el.textContent = Math.round(target * (1 - Math.pow(1 - p, 3)));
+            if (p < 1) requestAnimationFrame(step);
+        }
+        requestAnimationFrame(step);
+    }
+    if ('IntersectionObserver' in window) {
+        var cObs = new IntersectionObserver(function (entries) {
+            entries.forEach(function (entry) {
+                if (entry.isIntersecting) {
+                    animateCounter(entry.target);
+                    cObs.unobserve(entry.target);
+                }
+            });
+        }, { threshold: 0.4 });
+        counters.forEach(function (el) { cObs.observe(el); });
+    } else {
+        counters.forEach(function (el) { el.textContent = el.getAttribute('data-count'); });
+    }
+})();
+</script>
+</body>
+</html>

@@ -1,0 +1,321 @@
+{% extends 'base.html' %}
+{% block title %}Dashboard{% endblock %}
+
+{% block content %}
+<div class="space-y-6">
+    <!-- Welcome Header & Quick Action Banner -->
+    <div class="bg-gradient-to-r from-iba-blue to-slate-900 rounded-2xl p-6 text-white shadow-sm flex flex-col md:flex-row justify-between items-start md:items-center">
+        <div>
+            <h1 class="text-2xl font-bold">Faculty Portal — {{ current_user.name }}</h1>
+            <p class="text-xs text-slate-300 mt-1">
+                {{ current_user.department }} • Automated Timetable Monitoring & Multi-Camera Presence Engine
+            </p>
+        </div>
+        <div class="mt-4 md:mt-0 flex space-x-3">
+            <a href="{{ url_for('timetable.index') }}" class="btn btn-secondary">
+                <i class="fa-solid fa-calendar-plus mr-1"></i> Weekly Timetable
+            </a>
+            <a href="{{ url_for('cameras.index') }}" class="btn btn-secondary">
+                <i class="fa-solid fa-video mr-1"></i> Camera Settings
+            </a>
+            <a href="{{ url_for('students.index') }}" class="btn btn-secondary">
+                <i class="fa-solid fa-user-plus mr-1"></i> Enroll Student
+            </a>
+        </div>
+    </div>
+
+    <!-- Active Class Status & Live Camera Section -->
+    <div class="grid grid-cols-1 lg:grid-cols-3 gap-6">
+        <!-- Live Video & Control Card -->
+        <div class="lg:col-span-2 bg-white rounded-2xl p-5 border border-slate-200 shadow-sm space-y-4">
+            <div class="flex justify-between items-center pb-3 border-b border-slate-100">
+                <div class="flex items-center space-x-2">
+                    <span class="w-3 h-3 rounded-full {% if active_session %}bg-emerald-500 animate-pulse{% else %}bg-slate-300{% endif %}"></span>
+                    <h2 class="font-bold text-slate-800 text-sm">
+                        {% if active_session %}
+                        Active Lecture: {{ active_session.course_name }} ({{ active_session.section }})
+                        {% else %}
+                        Classroom Monitoring: Standby
+                        {% endif %}
+                    </h2>
+                </div>
+                <div class="flex space-x-2">
+                    {% if not active_session %}
+                    <form action="{{ url_for('dashboard.start_class_manual') }}" method="POST" class="inline-flex items-center gap-2">
+            <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
+                        {% if classes %}
+                        <select name="class_group_id" class="border border-slate-300 rounded-lg px-2 py-2 text-xs bg-white" title="Which class is this for? Only that class's students will be marked.">
+                            <option value="">— Which class? —</option>
+                            {% for g in classes %}
+                            <option value="{{ g.id }}">{{ g.display_name() }}</option>
+                            {% endfor %}
+                        </select>
+                        {% endif %}
+                        <button type="submit" class="btn btn-gold">
+                            <i class="fa-solid fa-play mr-1.5"></i> Start Class Now
+                        </button>
+                    </form>
+                    {% else %}
+                    <form action="{{ url_for('dashboard.stop_class_manual') }}" method="POST" class="inline" data-iba-confirm data-iba-confirm-title="Stop class?" data-iba-confirm-message="Stop monitoring and finalize attendance for this lecture?" data-iba-confirm-text="Stop Class">
+            <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
+                        <button type="submit" class="btn btn-danger">
+                            <i class="fa-solid fa-stop mr-1.5"></i> Stop Class
+                        </button>
+                    </form>
+                    {% endif %}
+                </div>
+            </div>
+
+            <!-- Video Player Window -->
+            <div class="aspect-video bg-slate-950 rounded-xl relative flex items-center justify-center border border-slate-800 overflow-hidden text-slate-400" id="videoContainer">
+                {% set active_cam = cameras|selectattr('is_active')|first %}
+                {% if active_cam and active_cam.camera_type == 'ip_webcam' and active_cam.stream_url %}
+                    <!-- Embedded Mobile IP Webcam Stream -->
+                    <img id="liveVideoFeed" src="{{ active_cam.stream_url }}" alt="Live IP Webcam Feed" class="w-full h-full object-contain" onerror="handleStreamError(this)">
+                {% else %}
+                    <!-- Browser Webcam / Standby View -->
+                    <video id="browserVideo" autoplay playsinline muted class="w-full h-full object-contain hidden"></video>
+                    <div id="standbyPlaceholder" class="text-center p-6 space-y-2">
+                        <i class="fa-solid fa-video text-4xl text-slate-600"></i>
+                        <p class="text-sm font-semibold text-slate-300">
+                            {{ active_cam.name if active_cam else 'No Camera Configured' }}
+                        </p>
+                        <p class="text-xs text-slate-500 max-w-sm">
+                            {% if active_cam and active_cam.camera_type == 'browser' %}
+                            Click "Start Browser Camera" below to use your laptop / USB webcam.
+                            {% elif active_cam and active_cam.camera_type == 'ip_webcam' %}
+                            Connecting to mobile phone stream at <code>{{ active_cam.stream_url }}</code>...
+                            {% else %}
+                            Please visit <a href="{{ url_for('cameras.index') }}" class="text-iba-gold underline">Camera Settings</a> to configure your Mobile IP Webcam or USB camera.
+                            {% endif %}
+                        </p>
+                        {% if active_cam and active_cam.camera_type == 'browser' %}
+                        <button onclick="startBrowserWebcam()" class="btn btn-primary mt-2">
+                            <i class="fa-solid fa-camera mr-1"></i> Start Browser Camera
+                        </button>
+                        {% endif %}
+                    </div>
+                {% endif %}
+
+                <!-- Detection Overlay Toast -->
+                <div id="liveDetectionToast" class="absolute bottom-3 left-3 bg-slate-900/90 text-white text-xs px-3 py-1.5 rounded-lg border border-slate-700 hidden flex items-center space-x-2">
+                    <span id="toastIcon">●</span>
+                    <span id="toastText">Tracking active...</span>
+                </div>
+            </div>
+
+            <!-- Camera Source Selector & Engine Badges -->
+            <div class="flex flex-wrap items-center justify-between text-xs bg-slate-50 p-3 rounded-xl border border-slate-200 gap-2">
+                <div class="flex items-center space-x-2">
+                    <i class="fa-solid fa-camera text-slate-500"></i>
+                    <span class="font-semibold text-slate-700">Camera Source:</span>
+                    <select onchange="window.location.href='{{ url_for('cameras.index') }}'" class="border border-slate-300 rounded px-2.5 py-1 text-xs bg-white font-medium">
+                        {% for c in cameras %}
+                        <option value="{{ c.id }}" {% if c.is_active %}selected{% endif %}>
+                            {{ c.name }} ({{ 'Mobile IP' if c.camera_type == 'ip_webcam' else 'USB/Browser' }})
+                        </option>
+                        {% else %}
+                        <option>No camera added yet</option>
+                        {% endfor %}
+                    </select>
+                </div>
+                <p class="text-xs text-slate-500">
+                    {% if active_session %}
+                    <i class="fa-solid fa-bolt text-iba-gold mr-1"></i> Auto-start is on: when a timetabled class begins, the camera starts by itself on this page. Keep this page open during class.
+                    {% else %}
+                    <i class="fa-solid fa-bolt text-slate-400 mr-1"></i> Auto-start is on: when your next timetabled class begins, open this page and the camera will start by itself.
+                    {% endif %}
+                </p>
+                <div class="flex items-center space-x-2">
+                    <span class="iba-badge" role="status" aria-label="Anti-spoofing is active">
+                        <i class="fa-solid fa-shield-halved mr-1"></i> Anti-Spoof Active
+                    </span>
+                    <span class="iba-badge" role="status" aria-label="10-minute attendance buffer is active">
+                        <i class="fa-solid fa-clock-rotate-left mr-1"></i> 10-Min Buffer
+                    </span>
+                </div>
+            </div>
+        </div>
+
+        <!-- Right Side: Stats & Today's Schedule -->
+        <div class="space-y-6">
+            <!-- Quick Stat Counters -->
+            <div class="grid grid-cols-2 gap-4">
+                <div class="bg-white p-4 rounded-xl border border-slate-200 shadow-sm text-center">
+                    <div class="text-2xl font-bold text-iba-blue">{{ total_students }}</div>
+                    <div class="text-xs text-slate-500 mt-1">Enrolled Students</div>
+                </div>
+                <div class="bg-white p-4 rounded-xl border border-slate-200 shadow-sm text-center">
+                    <div class="text-2xl font-bold text-emerald-600">{{ schedules|length }}</div>
+                    <div class="text-xs text-slate-500 mt-1">Weekly Lectures</div>
+                </div>
+            </div>
+
+            <!-- Weekly Classes Preview -->
+            <div class="bg-white rounded-2xl p-5 border border-slate-200 shadow-sm space-y-3">
+                <div class="flex justify-between items-center pb-2 border-b border-slate-100">
+                    <h2 class="font-bold text-xs uppercase tracking-wider text-slate-500">Upcoming Timetable</h2>
+                    <a href="{{ url_for('timetable.index') }}" class="btn btn-ghost btn-sm min-h-[44px] px-3"><i class="fa-solid fa-calendar-days mr-1"></i> Manage</a>
+                </div>
+
+                <div class="space-y-2">
+                    {% if schedules %}
+                        {% for s in schedules[:4] %}
+                        <div class="flex items-center justify-between p-2.5 rounded-lg border border-slate-100 bg-slate-50/50 text-xs">
+                            <div>
+                                <span class="font-bold text-slate-800">{{ s.course_code }}</span>
+                                <span class="text-slate-500 block">{{ s.course_name }}</span>
+                            </div>
+                            <div class="text-right">
+                                <span class="font-semibold text-iba-blue">{{ s.day_of_week }}</span>
+                                <span class="text-slate-400 block">{{ s.start_time.strftime('%I:%M %p') }}</span>
+                            </div>
+                        </div>
+                        {% endfor %}
+                    {% else %}
+                        <p class="text-xs text-slate-400 text-center py-4">No classes scheduled yet. Add your weekly schedule to enable auto-attendance.</p>
+                    {% endif %}
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+{% endblock %}
+
+{% block scripts %}
+<script>
+let captureInterval = null;
+let cameraAutoStarted = false;
+
+/* v5 camera auto-start: when a class is live, the browser camera starts
+   by itself — no click needed at class time. The page also polls the
+   server every 30 seconds, so if the timetable starts a class while
+   this page is open, the camera starts then. For a phone (IP Webcam)
+   the stream image above already loads by itself when the page opens. */
+function isBrowserCameraActive() {
+    var v = document.getElementById('browserVideo');
+    return !!v;
+}
+async function autoStartCameraIfLive() {
+    if (cameraAutoStarted) return;
+    if (!isBrowserCameraActive()) return; /* IP webcam: stream already shows */
+    try {
+        await startBrowserWebcam();
+        cameraAutoStarted = true;
+        var toast = document.getElementById('liveDetectionToast');
+        var text = document.getElementById('toastText');
+        if (toast && text) {
+            toast.classList.remove('hidden');
+            text.textContent = 'Camera auto-started — live monitoring is on.';
+        }
+    } catch (e) { /* permission denied etc. — startBrowserWebcam already shows the alert */ }
+}
+async function pollSessionStatus() {
+    try {
+        var res = await fetch("{{ url_for('dashboard.session_status') }}");
+        if (!res.ok) return;
+        var data = await res.json();
+        if (data.active) {
+            autoStartCameraIfLive();
+        } else {
+            cameraAutoStarted = false;
+            if (captureInterval) { clearInterval(captureInterval); captureInterval = null; }
+        }
+    } catch (e) { /* network stutter — try again next poll */ }
+}
+document.addEventListener('DOMContentLoaded', function () {
+    {% if active_session %}
+    autoStartCameraIfLive();
+    {% endif %}
+    setInterval(pollSessionStatus, 30000);
+});
+
+function handleStreamError(img) {
+    img.style.display = 'none';
+    const container = document.getElementById('videoContainer');
+    container.innerHTML = `
+        <div class="text-center p-6 space-y-2 text-rose-600">
+            <i class="fa-solid fa-triangle-exclamation text-4xl text-rose-600"></i>
+            <p class="text-sm font-semibold">Mobile IP Webcam Unreachable</p>
+            <p class="text-xs text-slate-400 max-w-sm">
+                Ensure your phone is running <strong>IP Webcam</strong> and both phone & laptop are on the same Wi-Fi network.
+            </p>
+            <a href="{{ url_for('cameras.index') }}" class="btn btn-primary mt-2">
+                Check Camera Settings
+            </a>
+        </div>
+    `;
+}
+
+async function startBrowserWebcam() {
+    try {
+        const stream = await navigator.mediaDevices.getUserMedia({ video: { width: 640, height: 480 }, audio: false });
+        const video = document.getElementById('browserVideo');
+        const placeholder = document.getElementById('standbyPlaceholder');
+        video.srcObject = stream;
+        video.classList.remove('hidden');
+        placeholder.classList.add('hidden');
+
+        // Periodically grab a frame every 3 seconds and send to AI backend
+        if (captureInterval) clearInterval(captureInterval);
+        captureInterval = setInterval(sendFrameToAI, 3000);
+        cameraAutoStarted = true;
+    } catch (err) {
+        showIbaAlert("Camera Access Denied", "Camera permission denied or camera not found: " + err.message, "error");
+    }
+}
+
+let frameFailures = 0;
+let cameraAlertShown = false;
+
+async function sendFrameToAI() {
+    const video = document.getElementById('browserVideo');
+    if (!video || video.paused || video.ended) return;
+
+    const canvas = document.createElement('canvas');
+    canvas.width = 300;
+    canvas.height = 300;
+    const ctx = canvas.getContext('2d');
+    ctx.drawImage(video, 0, 0, 300, 300);
+    const b64 = canvas.toDataURL('image/jpeg', 0.8);
+
+    let res = null;
+    try {
+        res = await fetch("{{ url_for('dashboard.process_frame') }}", {
+            method: 'POST',
+            headers: {'Content-Type': 'application/json',
+                      'X-CSRFToken': document.querySelector('meta[name="csrf-token"]').getAttribute('content')},
+            body: JSON.stringify({image: b64})
+        });
+    } catch (e) {
+        res = null; /* network stutter — counted below */
+    }
+
+    if (!res || !res.ok) {
+        frameFailures++;
+        if (frameFailures >= 3 && !cameraAlertShown) {
+            cameraAlertShown = true;
+            showIbaAlert("Camera disconnected", "Camera disconnected — check the camera and restart monitoring.", "warning");
+        }
+        return;
+    }
+    frameFailures = 0;
+    cameraAlertShown = false;
+
+    const data = await res.json();
+    const toast = document.getElementById('liveDetectionToast');
+    const text = document.getElementById('toastText');
+    const icon = document.getElementById('toastIcon');
+
+    if (data.success && !data.is_unknown) {
+        toast.classList.remove('hidden');
+        icon.className = 'text-emerald-600';
+        text.innerHTML = `<strong>${data.name}</strong> (${(data.confidence * 100).toFixed(0)}%) - Present`;
+    } else if (data.is_spoof) {
+        toast.classList.remove('hidden');
+        icon.className = 'text-rose-600';
+        text.innerHTML = `<strong>${data.message}</strong>`;
+    }
+}
+</script>
+{% endblock %}

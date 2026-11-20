@@ -1,0 +1,621 @@
+/* ============================================================
+   Attenova — Smart Attendance: shared UI polish
+   Theme: navy #003366 / gold #D4AF37 / dark #0A192F /
+          teal #0D9488. Subtle, professional motion only.
+   This file is the ONLY place UI-polish CSS lives.
+   ============================================================ */
+
+:root {
+    --iba-navy: #003366;
+    --iba-gold: #D4AF37;
+    --iba-dark: #0A192F;
+    --iba-teal: #0D9488;
+    --iba-sidebar-w: 252px;
+    --iba-sidebar-w-collapsed: 76px;
+    --iba-topbar-h: 60px;
+    --iba-motion: 300ms ease;
+}
+
+/* ---------- Page load: gentle fade + rise ---------- */
+@keyframes iba-fade-slide-in {
+    from { opacity: 0; transform: translateY(8px); }
+    to   { opacity: 1; transform: translateY(0); }
+}
+.iba-page {
+    animation: iba-fade-slide-in 280ms ease both;
+}
+
+/* ---------- Top bar (v5): brand lives here, separate from the sidebar ----------
+   Fixed, full-width, never collapses. The logo + name are always visible
+   and static, so closing the sidebar can never break them. */
+.iba-topbar {
+    position: fixed;
+    top: 0;
+    left: 0;
+    right: 0;
+    height: var(--iba-topbar-h);
+    z-index: 50;
+    display: flex;
+    align-items: center;
+    gap: 0.75rem;
+    padding: 0 1rem;
+    background: linear-gradient(90deg, #0A192F 0%, #003366 70%, #0a2a4d 100%);
+    color: #e2e8f0;
+    box-shadow: 0 2px 14px rgba(10, 25, 47, 0.35);
+}
+.iba-topbar-brand {
+    display: flex;
+    align-items: center;
+    gap: 0.65rem;
+    text-decoration: none;
+    flex-shrink: 0;
+}
+.iba-topbar-logo {
+    width: 38px;
+    height: 38px;
+    border-radius: 10px;
+    background: rgba(255, 255, 255, 0.10);
+    border: 1px solid rgba(255, 255, 255, 0.15);
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    overflow: hidden;
+    flex-shrink: 0;
+}
+.iba-topbar-logo img { width: 34px; height: 34px; object-fit: contain; }
+.iba-topbar-text { display: flex; flex-direction: column; line-height: 1.15; min-width: 0; }
+.iba-topbar-name { font-weight: 700; font-size: 15px; letter-spacing: 0.02em; color: #fff; }
+.iba-topbar-sub { font-size: 11px; color: #cbd5e1; }
+.iba-topbar-spacer { flex: 1; }
+.iba-topbar-user {
+    align-items: center;
+    gap: 0.5rem;
+    font-size: 0.8rem;
+    font-weight: 600;
+    color: #fff;
+    background: rgba(255, 255, 255, 0.08);
+    border: 1px solid rgba(255, 255, 255, 0.12);
+    border-radius: 9999px;
+    padding: 0.4rem 0.8rem;
+}
+.iba-topbar .btn-ghost { color: #e2e8f0; }
+.iba-topbar .btn-ghost:hover { background: rgba(255, 255, 255, 0.12); color: #fff; }
+
+/* ---------- Sidebar shell (v5): a separate rounded card ---------- */
+.iba-sidebar {
+    position: fixed;
+    top: calc(var(--iba-topbar-h) + 12px);
+    left: 12px;
+    height: calc(100vh - var(--iba-topbar-h) - 24px);
+    height: calc(100dvh - var(--iba-topbar-h) - 24px);
+    width: var(--iba-sidebar-w);
+    z-index: 40;
+    display: flex;
+    flex-direction: column;
+    background: linear-gradient(180deg, #0A192F 0%, #003366 78%, #0a2a4d 100%);
+    color: #e2e8f0;
+    border-radius: 1rem;
+    box-shadow: 2px 0 18px rgba(10, 25, 47, 0.35);
+    transition: width var(--iba-motion), transform var(--iba-motion);
+    overflow: hidden;
+}
+.iba-main {
+    margin-left: calc(var(--iba-sidebar-w) + 24px);
+    padding-top: var(--iba-topbar-h);
+    min-height: 100vh;
+    min-height: 100dvh;
+    display: flex;
+    flex-direction: column;
+    transition: margin-left var(--iba-motion);
+    min-width: 0;
+}
+
+/* Collapsed-sidebar tooltip (v5): themed, fixed, shown by JS while the
+   mouse stays on a link. pointer-events:none so moving the mouse never
+   kills the hover on the link itself. */
+.iba-nav-tip {
+    position: fixed;
+    z-index: 90;
+    transform: translateY(-50%);
+    background: #0A192F;
+    color: #fff;
+    border: 1px solid var(--iba-gold);
+    border-radius: 0.6rem;
+    padding: 0.45rem 0.8rem;
+    font-size: 0.8rem;
+    font-weight: 600;
+    white-space: nowrap;
+    box-shadow: 0 8px 24px rgba(10, 25, 47, 0.45);
+    opacity: 0;
+    pointer-events: none;
+    transition: opacity 150ms ease;
+}
+.iba-nav-tip-visible { opacity: 1; }
+
+/* Collapsed (desktop): icons only */
+body.iba-collapsed .iba-sidebar { width: var(--iba-sidebar-w-collapsed); }
+body.iba-collapsed .iba-main { margin-left: calc(var(--iba-sidebar-w-collapsed) + 24px); }
+body.iba-collapsed .iba-nav-label,
+body.iba-collapsed .iba-chip-text,
+body.iba-collapsed .iba-nav-section {
+    display: none;
+}
+body.iba-collapsed .iba-nav-link {
+    justify-content: center;
+}
+body.iba-collapsed .iba-nav-link i { margin-right: 0; }
+
+/* Sidebar links: soft hover lift + gold underline sweep */
+.iba-nav-link {
+    position: relative;
+    display: flex;
+    align-items: center;
+    gap: 0.75rem;
+    padding: 0.65rem 0.9rem;
+    margin: 0 0.6rem;
+    border-radius: 0.65rem;
+    border-left: 3px solid transparent;
+    color: #cbd5e1;
+    font-size: 0.875rem;
+    font-weight: 500;
+    white-space: nowrap;
+    transition: background-color 200ms ease, color 200ms ease,
+                border-color 200ms ease, transform 200ms ease;
+}
+.iba-nav-link::after {
+    content: "";
+    position: absolute;
+    left: 0.9rem;
+    right: 0.9rem;
+    bottom: 0.3rem;
+    height: 2px;
+    background: var(--iba-gold);
+    transform: scaleX(0);
+    transform-origin: left;
+    transition: transform 250ms ease;
+}
+.iba-nav-link:hover {
+    background: rgba(255, 255, 255, 0.07);
+    color: #fff;
+    transform: translateX(2px);
+}
+.iba-nav-link:hover::after { transform: scaleX(1); }
+.iba-nav-link i { width: 1.25rem; text-align: center; flex-shrink: 0; }
+.iba-nav-link.iba-active {
+    background: rgba(255, 255, 255, 0.15);
+    border-left: 3px solid var(--iba-gold);
+    color: #fff;
+    font-weight: 700;
+    box-shadow: inset 0 0 0 1px rgba(255, 255, 255, 0.08);
+}
+.iba-nav-link.iba-active i { color: var(--iba-gold); }
+.iba-nav-link.iba-active::after { transform: scaleX(1); }
+.iba-nav-link.iba-danger:hover { background: rgba(225, 29, 72, 0.18); color: #fda4af; }
+.iba-nav-link.iba-danger:hover::after { background: #f43f5e; }
+
+/* Sidebar backdrop (mobile only) */
+.iba-sidebar-backdrop {
+    position: fixed;
+    inset: 0;
+    z-index: 35;
+    background: rgba(10, 25, 47, 0.55);
+    backdrop-filter: blur(2px);
+    opacity: 0;
+    pointer-events: none;
+    transition: opacity var(--iba-motion);
+}
+body.iba-sidebar-open .iba-sidebar-backdrop { opacity: 1; pointer-events: auto; }
+
+/* ---------- Themed modal (replaces native alert/confirm) ---------- */
+@keyframes iba-modal-in {
+    from { opacity: 0; transform: scale(0.96) translateY(8px); }
+    to   { opacity: 1; transform: scale(1) translateY(0); }
+}
+@keyframes iba-backdrop-in {
+    from { opacity: 0; }
+    to   { opacity: 1; }
+}
+.iba-modal-backdrop {
+    position: fixed;
+    inset: 0;
+    z-index: 100;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    padding: 1rem;
+    background: rgba(10, 25, 47, 0.55);
+    backdrop-filter: blur(3px);
+    animation: iba-backdrop-in 200ms ease both;
+}
+.iba-modal-backdrop.iba-hidden { display: none; }
+.iba-modal {
+    width: 100%;
+    max-width: 26rem;
+    background: #fff;
+    border-radius: 1rem;
+    overflow: hidden;
+    box-shadow: 0 24px 60px rgba(10, 25, 47, 0.35);
+    animation: iba-modal-in 220ms ease both;
+}
+.iba-modal-header {
+    background: linear-gradient(135deg, #0A192F, #003366);
+    color: #fff;
+    padding: 1rem 1.25rem;
+    display: flex;
+    align-items: center;
+    gap: 0.75rem;
+}
+.iba-modal-header .iba-modal-icon {
+    color: var(--iba-gold);
+    font-size: 1.25rem;
+    flex-shrink: 0;
+}
+.iba-modal-header h3 { font-size: 1rem; font-weight: 700; flex: 1; }
+.iba-modal-body { padding: 1.25rem; font-size: 0.875rem; color: #334155; line-height: 1.6; }
+.iba-modal-footer {
+    padding: 0 1.25rem 1.25rem;
+    display: flex;
+    justify-content: flex-end;
+    gap: 0.6rem;
+}
+
+/* ---------- Flash banners: slide in, fade out ---------- */
+@keyframes iba-flash-in {
+    from { opacity: 0; transform: translateY(-8px); }
+    to   { opacity: 1; transform: translateY(0); }
+}
+.iba-flash {
+    animation: iba-flash-in 280ms ease both;
+    transition: opacity 400ms ease, transform 400ms ease;
+}
+.iba-flash.iba-flash-out { opacity: 0; transform: translateY(-6px); }
+
+/* ---------- Cards: gentle lift on hover (content cards only) ---------- */
+main .bg-white.rounded-2xl,
+main .bg-white.rounded-xl {
+    transition: transform 220ms ease, box-shadow 220ms ease;
+}
+main .bg-white.rounded-2xl:hover,
+main .bg-white.rounded-xl:hover {
+    transform: translateY(-2px);
+    box-shadow: 0 10px 24px rgba(10, 25, 47, 0.10);
+}
+
+/* ---------- Buttons: ONE shared system (5 styles, Floto fix #1/#6) ----------
+   .btn-primary  navy — the default action
+   .btn-secondary white with slate border — the consistent header action
+   .btn-gold     gold — reserved for ONE primary call-to-action per page
+   .btn-danger   rose — destructive actions only
+   .btn-ghost    transparent — quiet/icon actions
+   .btn-sm       smaller size of the same style (tables, inline actions) */
+.btn {
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    gap: 0.4rem;
+    font-weight: 600;
+    font-size: 0.875rem;
+    line-height: 1.25;
+    min-height: 44px;
+    padding: 0.6rem 1rem;
+    border-radius: 0.65rem;
+    border: 1px solid transparent;
+    cursor: pointer;
+    text-decoration: none;
+    white-space: nowrap;
+    transition: transform 180ms ease, box-shadow 180ms ease, background-color 180ms ease, color 180ms ease;
+}
+.btn:hover:not(:disabled) { transform: translateY(-1px); }
+.btn:disabled { opacity: 0.45; cursor: not-allowed; transform: none; }
+.btn-sm { min-height: 0; padding: 0.35rem 0.7rem; font-size: 0.75rem; }
+.btn-primary { background: #003366; color: #fff; }
+.btn-primary:hover:not(:disabled) { background: #0A192F; }
+.btn-secondary { background: #fff; color: #003366; border-color: #cbd5e1; }
+.btn-secondary:hover:not(:disabled) { background: #f1f5f9; }
+.btn-gold { background: #D4AF37; color: #0A192F; }
+.btn-gold:hover:not(:disabled) { background: #c9a227; }
+.btn-danger { background: #e11d48; color: #fff; }
+.btn-danger:hover:not(:disabled) { background: #be123c; }
+.btn-ghost { background: transparent; color: inherit; border-color: transparent; }
+.btn-ghost:hover:not(:disabled) { background: rgba(100, 116, 139, 0.15); }
+
+/* ---------- Passive status badges (Floto fix #7) ----------
+   Deliberately NOT button-like: no border, no hover, default cursor. */
+.iba-badge {
+    display: inline-flex;
+    align-items: center;
+    gap: 0.25rem;
+    font-size: 0.75rem;
+    font-weight: 600;
+    color: #475569;
+    background: #f1f5f9;
+    padding: 0.2rem 0.55rem;
+    border-radius: 9999px;
+    cursor: default;
+    user-select: none;
+}
+
+/* ---------- Buttons: soft hover lift ---------- */
+main button,
+main a[class*="rounded"] {
+    transition: transform 180ms ease, box-shadow 180ms ease, background-color 180ms ease;
+}
+main button:hover:not(:disabled) { transform: translateY(-1px); }
+
+/* ---------- Mobile: sidebar off-canvas ---------- */
+@media (max-width: 767px) {
+    .iba-topbar-sub { display: none; }
+    .iba-sidebar {
+        width: var(--iba-sidebar-w);
+        transform: translateX(-120%);
+    }
+    body.iba-sidebar-open .iba-sidebar { transform: translateX(0); }
+    .iba-main { margin-left: 0; }
+    body.iba-collapsed .iba-main { margin-left: 0; }
+    /* On mobile the sidebar is always full-width with labels */
+    body.iba-collapsed .iba-nav-label,
+    body.iba-collapsed .iba-chip-text,
+    body.iba-collapsed .iba-nav-section { display: revert; }
+    body.iba-collapsed .iba-nav-link { justify-content: flex-start; }
+    body.iba-collapsed .iba-nav-link i { margin-right: 0; }
+}
+
+/* ---------- Respect reduced motion ---------- */
+@media (prefers-reduced-motion: reduce) {
+    *, *::before, *::after {
+        animation-duration: 0.01ms !important;
+        animation-iteration-count: 1 !important;
+        transition-duration: 0.01ms !important;
+    }
+}
+
+/* ---------- Print: clean report (Floto / Task 4f) ----------
+   Hide the sidebar, navigation, buttons and footer; show the tables. */
+@media print {
+    .iba-topbar, .iba-nav-tip, .iba-sidebar, .iba-sidebar-backdrop, .no-print,
+    footer, #ibaMobileMenuBtn, .btn { display: none !important; }
+    .iba-main { padding-top: 0 !important; }
+    .iba-main { margin-left: 0 !important; }
+    body { background: #fff !important; }
+    .iba-page { animation: none !important; }
+    main .bg-white.rounded-2xl, main .bg-white.rounded-xl { box-shadow: none !important; }
+}
+
+/* ---------- v5: class student list scrolls on its own ---------- */
+.iba-scroll-list {
+    max-height: 62vh;
+    overflow-y: auto;
+    overflow-x: auto;
+}
+.iba-scroll-list thead th {
+    position: sticky;
+    top: 0;
+    z-index: 5;
+    background: #f8fafc;
+}
+/* Roster table: fixed layout so long names / buttons never overlap. */
+.iba-roster-table { table-layout: fixed; width: 100%; }
+.iba-roster-table th, .iba-roster-table td { overflow-wrap: anywhere; }
+.iba-roster-actions { display: flex; flex-wrap: wrap; gap: 0.35rem; justify-content: flex-end; align-items: center; }
+
+/* ============================================================
+   v7 — unified floating topbar, sidebar polish, developer
+   signature, auth one-screen + live background, appearance
+   prefs. Palette UNCHANGED: navy #003366 / gold #D4AF37 /
+   dark #0A192F / teal #0D9488.
+   ============================================================ */
+
+/* ---------- Fonts: Fraunces (display) + Inter (UI), with fallbacks ---------- */
+body.font-sans {
+    font-family: 'Inter', ui-sans-serif, system-ui, -apple-system, "Segoe UI", Roboto, sans-serif;
+}
+main h1, main h2, .iba-display {
+    font-family: 'Fraunces', Georgia, 'Times New Roman', serif;
+    letter-spacing: 0.01em;
+}
+
+/* ---------- Unified floating topbar (v7) ----------
+   Same outer shell on the app pages and the landing page:
+   a navy bar that floats with a small margin and slightly
+   rounded corners — never edge-to-edge. */
+.iba-topbar {
+    top: 12px;
+    left: 12px;
+    right: 12px;
+    border-radius: 1rem;
+    border-bottom: 1px solid rgba(212, 175, 55, 0.35);
+    box-shadow: 0 6px 22px rgba(10, 25, 47, 0.35);
+}
+/* The bar floats, so content and sidebar start below it. */
+.iba-main { padding-top: calc(var(--iba-topbar-h) + 24px); }
+.iba-sidebar { top: calc(var(--iba-topbar-h) + 24px); height: calc(100vh - var(--iba-topbar-h) - 36px); height: calc(100dvh - var(--iba-topbar-h) - 36px); }
+.iba-topbar-clock {
+    font-size: 0.75rem;
+    font-weight: 600;
+    color: #cbd5e1;
+    background: rgba(255, 255, 255, 0.07);
+    border: 1px solid rgba(255, 255, 255, 0.10);
+    border-radius: 9999px;
+    padding: 0.4rem 0.75rem;
+    white-space: nowrap;
+}
+.iba-topbar-clock i { color: var(--iba-gold); margin-right: 0.35rem; }
+
+/* ---------- Sidebar head row: holds the collapse button (v7) ---------- */
+.iba-sidebar-head {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    gap: 0.5rem;
+    padding: 0.7rem 0.75rem 0.35rem;
+    flex-shrink: 0;
+}
+.iba-sidebar-head-label {
+    font-size: 0.68rem;
+    font-weight: 700;
+    letter-spacing: 0.22em;
+    text-transform: uppercase;
+    color: rgba(212, 175, 55, 0.85);
+    padding-left: 0.35rem;
+}
+.iba-sidebar-head .btn-ghost { color: #cbd5e1; }
+.iba-sidebar-head .btn-ghost:hover { background: rgba(255, 255, 255, 0.12); color: #fff; }
+body.iba-collapsed .iba-sidebar-head { justify-content: center; padding: 0.7rem 0 0.35rem; }
+body.iba-collapsed .iba-sidebar-head-label { display: none; }
+
+/* ---------- Sidebar section labels: elegant, gold, with a rule (v7) ---------- */
+.iba-sidebar .iba-nav-section {
+    color: #d9bd55;
+    display: flex;
+    align-items: center;
+    gap: 0.6rem;
+}
+.iba-sidebar .iba-nav-section::after {
+    content: "";
+    flex: 1;
+    height: 1px;
+    background: linear-gradient(90deg, rgba(212, 175, 55, 0.55), rgba(212, 175, 55, 0));
+}
+
+/* ---------- Developer signature at the sidebar bottom (v7) ---------- */
+.iba-dev-signature {
+    display: flex;
+    align-items: center;
+    gap: 0.65rem;
+    background: rgba(255, 255, 255, 0.05);
+    border: 1px solid rgba(255, 255, 255, 0.10);
+    border-radius: 0.9rem;
+    padding: 0.6rem 0.7rem;
+}
+.iba-dev-photo {
+    width: 42px;
+    height: 42px;
+    border-radius: 50%;
+    object-fit: cover;
+    border: 2px solid var(--iba-gold);
+    flex-shrink: 0;
+}
+.iba-dev-text { display: flex; flex-direction: column; line-height: 1.25; min-width: 0; }
+.iba-dev-by { font-size: 0.62rem; letter-spacing: 0.14em; text-transform: uppercase; color: #94a3b8; }
+.iba-dev-name { font-size: 0.82rem; font-weight: 700; color: #fff; white-space: nowrap; }
+.iba-dev-role { font-size: 0.68rem; color: #cbd5e1; white-space: nowrap; }
+body.iba-collapsed .iba-dev-text { display: none; }
+body.iba-collapsed .iba-dev-signature {
+    justify-content: center;
+    padding: 0.45rem;
+    background: transparent;
+    border-color: transparent;
+}
+
+/* ---------- Footer (v7): slim, navy, gold accents ---------- */
+.iba-footer {
+    background: #0A192F;
+    color: #94a3b8;
+    font-size: 0.75rem;
+    padding: 0.85rem 1rem;
+    text-align: center;
+    border-top: 1px solid rgba(212, 175, 55, 0.25);
+    margin-top: auto;
+    display: flex;
+    flex-wrap: wrap;
+    align-items: center;
+    justify-content: center;
+    gap: 0.35rem 1rem;
+}
+.iba-footer p { margin: 0; }
+.iba-footer .iba-footer-brand { color: #e2e8f0; font-weight: 700; }
+.iba-footer .iba-footer-brand b { color: var(--iba-gold); font-weight: 700; }
+.iba-footer a { color: #cbd5e1; text-decoration: none; font-weight: 600; }
+.iba-footer a:hover { color: var(--iba-gold); }
+.iba-footer .iba-footer-sep { color: rgba(212, 175, 55, 0.6); }
+
+/* ---------- Auth pages: one screen, no scroll + live background (v7) ---------- */
+body.iba-auth-page {
+    height: 100vh;
+    height: 100dvh;
+    overflow: hidden;
+    display: flex;
+    flex-direction: column;
+    background: linear-gradient(180deg, #eef2f7 0%, #f8fafc 55%, #eef2f7 100%);
+}
+body.iba-auth-page .iba-auth-main {
+    flex: 1;
+    min-height: 0;
+    width: 100%;
+    display: flex;
+    flex-direction: column;
+    justify-content: center;
+    overflow-y: auto;
+    padding: 0.75rem 1rem;
+    position: relative;
+    z-index: 2;
+}
+body.iba-auth-page .iba-auth-main > * { animation: iba-fade-slide-in 380ms ease both; }
+body.iba-auth-page .iba-auth-main > *:nth-child(2) { animation-delay: 90ms; }
+body.iba-auth-page footer { position: relative; z-index: 2; flex-shrink: 0; }
+body.iba-auth-page .iba-topbar { flex-shrink: 0; }
+/* Soft drifting navy glow + faint gold particles behind the form. */
+.iba-auth-bg { position: fixed; inset: 0; overflow: hidden; pointer-events: none; z-index: 1; }
+.iba-auth-bg .blob { position: absolute; border-radius: 50%; filter: blur(70px); opacity: 0.35; }
+.iba-auth-bg .blob-1 { width: 380px; height: 380px; background: #1d6fb8; top: -120px; left: -80px; animation: iba-auth-drift 11s ease-in-out infinite; }
+.iba-auth-bg .blob-2 { width: 300px; height: 300px; background: #D4AF37; bottom: -110px; right: -70px; opacity: 0.16; animation: iba-auth-drift 14s ease-in-out infinite reverse; }
+.iba-auth-bg .dot {
+    position: absolute; width: 5px; height: 5px; border-radius: 50%;
+    background: #D4AF37; opacity: 0.5; animation: iba-auth-rise 9s linear infinite;
+}
+.iba-auth-bg .dot:nth-child(3) { left: 18%; bottom: -10px; animation-delay: 0s; }
+.iba-auth-bg .dot:nth-child(4) { left: 62%; bottom: -10px; animation-delay: 3s; animation-duration: 12s; }
+.iba-auth-bg .dot:nth-child(5) { left: 84%; bottom: -10px; animation-delay: 6s; animation-duration: 10s; }
+@keyframes iba-auth-drift {
+    0%, 100% { transform: translateY(0) translateX(0); }
+    50% { transform: translateY(-22px) translateX(16px); }
+}
+@keyframes iba-auth-rise {
+    from { transform: translateY(0); opacity: 0; }
+    15% { opacity: 0.5; }
+    to { transform: translateY(-105vh); opacity: 0; }
+}
+/* Compact auth header so the whole page fits one screen. */
+.iba-auth-compact { margin-bottom: 1rem !important; }
+.iba-auth-compact img { width: 3rem !important; height: 3rem !important; }
+.iba-auth-compact .iba-auth-icon { width: 3rem !important; height: 3rem !important; font-size: 1.25rem !important; margin-bottom: 0.5rem !important; }
+
+/* ---------- Page-change fade: landing -> login (v7) ----------
+   The landing page fades out briefly; the login page fades in
+   (see .iba-auth-page entrance above). JS only adds the class —
+   if JS fails, the link still navigates instantly. */
+body.iba-page-leaving { opacity: 0; transition: opacity 300ms ease; }
+
+/* ---------- Appearance prefs (v7): compact density + reduce motion ---------- */
+body.iba-compact .iba-page main { padding-top: 0.75rem !important; padding-bottom: 0.75rem !important; }
+body.iba-compact .iba-nav-link { padding-top: 0.45rem; padding-bottom: 0.45rem; }
+body.iba-compact .btn { min-height: 40px; }
+body.iba-compact main .bg-white.rounded-2xl,
+body.iba-compact main .bg-white.rounded-xl { padding: 1rem !important; }
+body.iba-reduce-motion *, body.iba-reduce-motion *::before, body.iba-reduce-motion *::after {
+    animation-duration: 0.01ms !important;
+    animation-iteration-count: 1 !important;
+    transition-duration: 0.01ms !important;
+    scroll-behavior: auto !important;
+}
+
+/* ---------- Settings segmented control (v7) ---------- */
+.iba-seg { display: inline-flex; border: 1px solid #cbd5e1; border-radius: 0.6rem; overflow: hidden; }
+.iba-seg button {
+    border: 0; background: #fff; color: #003366; font-size: 0.75rem; font-weight: 600;
+    padding: 0.45rem 0.8rem; cursor: pointer; min-height: 0;
+}
+.iba-seg button + button { border-left: 1px solid #cbd5e1; }
+.iba-seg button[aria-pressed="true"] { background: #003366; color: #fff; }
+.iba-pref-btn[aria-pressed="true"] { background: #003366 !important; color: #fff !important; border-color: #003366 !important; }
+
+@media (max-width: 767px) {
+    .iba-topbar-clock { display: none; }
+}
+.iba-auth-choice-card {
+    border: 1px solid #e2e8f0;
+    border-radius: 0.9rem;
+    padding: 1rem;
+    background: #f8fafc;
+}
+.iba-auth-choice-card.iba-auth-current { border-color: var(--iba-gold); background: #fffbeb; }

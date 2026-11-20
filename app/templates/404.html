@@ -1,0 +1,14 @@
+{% extends 'base.html' %}
+{% block title %}Page not found (404){% endblock %}
+
+{% block content %}
+<div class="max-w-lg mx-auto bg-white p-8 rounded-2xl shadow-sm border border-slate-200 mt-6 text-center space-y-4">
+    <p class="text-6xl font-black text-iba-blue">404</p>
+    <h1 class="text-2xl font-bold text-slate-900">Page not found</h1>
+    <p class="text-sm text-slate-500">That page does not exist or was moved. Check the address, or go back to the dashboard.</p>
+    <div class="flex justify-center gap-2">
+        <a href="{{ url_for('dashboard.index') }}" class="btn btn-primary">Back to Dashboard</a>
+        <a href="{{ url_for('student.login') }}" class="btn btn-secondary">Student Portal</a>
+    </div>
+</div>
+{% endblock %}
