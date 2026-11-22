@@ -1,0 +1,57 @@
+{
+  "models": {
+    "SVM (RBF Kernel)": {
+      "accuracy": 100.0,
+      "precision": 100.0,
+      "recall": 100.0,
+      "f1_score": 100.0,
+      "cv_accuracy": 100.0
+    },
+    "K-Nearest Neighbors": {
+      "accuracy": 100.0,
+      "precision": 100.0,
+      "recall": 100.0,
+      "f1_score": 100.0,
+      "cv_accuracy": 100.0
+    },
+    "Random Forest": {
+      "accuracy": 100.0,
+      "precision": 100.0,
+      "recall": 100.0,
+      "f1_score": 100.0,
+      "cv_accuracy": 100.0
+    },
+    "Logistic Regression": {
+      "accuracy": 100.0,
+      "precision": 100.0,
+      "recall": 100.0,
+      "f1_score": 100.0,
+      "cv_accuracy": 100.0
+    }
+  },
+  "best_model": "SVM (RBF Kernel)",
+  "classes": [
+    "Student_A",
+    "Student_B",
+    "Student_C"
+  ],
+  "confusion_matrix": [
+    [
+      2,
+      0,
+      0
+    ],
+    [
+      0,
+      3,
+      0
+    ],
+    [
+      0,
+      0,
+      3
+    ]
+  ],
+  "total_samples": 30,
+  "total_classes": 3
+}
