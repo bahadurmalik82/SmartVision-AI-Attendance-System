@@ -1,0 +1,13 @@
+services:
+  - type: web
+    name: attenova
+    env: python
+    buildCommand: pip install -r requirements.txt
+    startCommand: FLASK_ENV=production HOST=0.0.0.0 python run.py
+    envVars:
+      - key: SECRET_KEY
+        generateValue: true
+      - key: FLASK_ENV
+        value: production
+      - key: HOST
+        value: 0.0.0.0
