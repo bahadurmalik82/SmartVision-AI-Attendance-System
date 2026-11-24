@@ -179,22 +179,6 @@
     <!-- ============ Main column ============ -->
     <div class="iba-main">
         <div class="iba-page flex-grow w-full flex flex-col">
-            <!-- Flash Notifications Container (themed banners; text/logic unchanged) -->
-            <div class="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 mt-4 w-full">
-                {% with messages = get_flashed_messages(with_categories=true) %}
-                    {% if messages %}
-                        {% for category, message in messages %}
-                            <div class="iba-flash p-4 mb-3 rounded-lg border text-sm flex items-center justify-between {% if category == 'danger' %}bg-rose-50 border-rose-200 text-rose-600{% elif category == 'success' %}bg-emerald-50 border-emerald-200 text-emerald-600{% elif category == 'warning' %}bg-amber-50 border-yellow-200 text-slate-700{% else %}bg-slate-100 border-slate-200 text-slate-700{% endif %}">
-                                <div>
-                                    <i class="fa-solid {% if category == 'danger' %}fa-circle-xmark{% elif category == 'success' %}fa-circle-check{% else %}fa-circle-info{% endif %} mr-2"></i>
-                                    {{ message }}
-                                </div>
-                            </div>
-                        {% endfor %}
-                    {% endif %}
-                {% endwith %}
-            </div>
-
             <!-- Main Content Block -->
             <main class="flex-grow max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-6 w-full">
                 {% block content %}{% endblock %}
@@ -204,7 +188,7 @@
             <!-- v8: one centred footer line — links next to the copyright,
                  clear spacing, no floating-right links. -->
             <footer class="iba-footer">
-                <p><span class="iba-footer-brand">Attenova</span> &mdash; Smart AI Attendance <span class="iba-footer-sep">&middot;</span> Crafted by <b>Bahadur Ali</b> <span class="iba-footer-sep">&middot;</span> v8.0 <span class="iba-footer-sep">&middot;</span> <a href="{{ url_for('dashboard.index') }}">Dashboard</a> <span class="iba-footer-sep">&middot;</span> <a href="{{ url_for('settings.index') }}">Settings</a></p>
+                <p><span class="iba-footer-brand">Attenova</span> &mdash; Smart AI Attendance <span class="iba-footer-sep">&middot;</span> Crafted by <b>Bahadur Ali</b> <span class="iba-footer-sep">&middot;</span> v8.1 <span class="iba-footer-sep">&middot;</span> <a href="{{ url_for('dashboard.index') }}">Dashboard</a> <span class="iba-footer-sep">&middot;</span> <a href="{{ url_for('settings.index') }}">Settings</a></p>
             </footer>
         </div>
     </div>
@@ -227,6 +211,29 @@
                         class="btn btn-primary">OK</button>
             </div>
         </div>
+    </div>
+
+    <!-- v8.1: the capture modal lives at body level, not inside a page
+         (a transformed ancestor would shift its fixed positioning). -->
+    {% include '_capture_modal.html' %}
+
+    <!-- v8.1: flash notifications are bottom-right toasts. This stack is
+         a DIRECT child of <body> (never inside .iba-page, whose
+         animation transform would pin fixed elements to the page box),
+         so toasts never push any page content down. Empty when there
+         are no messages — a fixed empty container takes no space. -->
+    <div class="iba-toast-stack" role="status" aria-live="polite">
+        {% with messages = get_flashed_messages(with_categories=true) %}
+            {% if messages %}
+                {% for category, message in messages %}
+                    <div class="iba-flash iba-toast iba-toast--{{ 'danger' if category == 'danger' else 'success' if category == 'success' else 'warning' if category == 'warning' else 'info' }}">
+                        <i class="fa-solid {% if category == 'danger' %}fa-circle-xmark{% elif category == 'success' %}fa-circle-check{% else %}fa-circle-info{% endif %} flex-shrink-0"></i>
+                        <span class="flex-1">{{ message }}</span>
+                        <button type="button" class="iba-toast-close" aria-label="Dismiss notification"><i class="fa-solid fa-xmark"></i></button>
+                    </div>
+                {% endfor %}
+            {% endif %}
+        {% endwith %}
     </div>
 
     <script>
@@ -441,6 +448,16 @@
                 banner.classList.add('iba-flash-out');
                 setTimeout(function () { banner.remove(); }, 450);
             }, 6000);
+        });
+
+        /* ---------- Toast dismiss button (v8.1) ---------- */
+        document.addEventListener('click', function (e) {
+            var btn = e.target.closest ? e.target.closest('.iba-toast-close') : null;
+            if (!btn) return;
+            var toast = btn.closest('.iba-toast');
+            if (!toast) return;
+            toast.classList.add('iba-flash-out');
+            setTimeout(function () { toast.remove(); }, 450);
         });
     })();
     </script>

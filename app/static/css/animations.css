@@ -261,14 +261,67 @@ body.iba-sidebar-open .iba-sidebar-backdrop { opacity: 1; pointer-events: auto; 
 
 /* ---------- Flash banners: slide in, fade out ---------- */
 @keyframes iba-flash-in {
-    from { opacity: 0; transform: translateY(-8px); }
-    to   { opacity: 1; transform: translateY(0); }
+    from { opacity: 0; transform: translateX(16px); }
+    to   { opacity: 1; transform: translateX(0); }
 }
 .iba-flash {
     animation: iba-flash-in 280ms ease both;
     transition: opacity 400ms ease, transform 400ms ease;
 }
-.iba-flash.iba-flash-out { opacity: 0; transform: translateY(-6px); }
+.iba-flash.iba-flash-out { opacity: 0; transform: translateX(12px); }
+
+/* ---------- v8.1: bottom-right toast notifications ----------
+   Flash messages no longer sit in the page flow (they used to push
+   all content down). They live in a fixed stack at the bottom right
+   of the VIEWPORT, narrow (320px max) so they never stretch
+   horizontally, stacking vertically. Backgrounds are translucent
+   (the text stays solid) so the page shows through faintly. */
+.iba-toast-stack {
+    position: fixed;
+    right: 1rem;
+    bottom: 1rem;
+    z-index: 110;
+    display: flex;
+    flex-direction: column;
+    gap: 0.5rem;
+    width: min(320px, calc(100vw - 2rem));
+    pointer-events: none;
+}
+.iba-toast {
+    pointer-events: auto;
+    display: flex;
+    align-items: flex-start;
+    gap: 0.5rem;
+    padding: 0.65rem 0.8rem;
+    border-radius: 0.75rem;
+    border: 1px solid;
+    font-size: 0.8125rem;
+    line-height: 1.45;
+    box-shadow: 0 10px 28px rgba(10, 25, 47, 0.25);
+    backdrop-filter: blur(6px);
+    -webkit-backdrop-filter: blur(6px);
+}
+.iba-toast--success { background: rgba(236, 253, 245, 0.88); border-color: rgba(167, 243, 208, 0.9); color: #047857; }
+.iba-toast--danger { background: rgba(255, 241, 242, 0.88); border-color: rgba(254, 205, 211, 0.9); color: #be123c; }
+.iba-toast--warning { background: rgba(255, 251, 235, 0.88); border-color: rgba(253, 230, 138, 0.9); color: #92400e; }
+.iba-toast--info { background: rgba(241, 245, 249, 0.88); border-color: rgba(203, 213, 225, 0.9); color: #334155; }
+.iba-toast-close {
+    flex-shrink: 0;
+    border: none;
+    background: transparent;
+    color: inherit;
+    opacity: 0.7;
+    cursor: pointer;
+    padding: 0.1rem 0.25rem;
+    line-height: 1;
+}
+.iba-toast-close:hover { opacity: 1; }
+
+/* ---------- v8.1: buttons whose long labels may wrap ----------
+   The capture modal's two action buttons are flex-1 with .btn
+   (white-space: nowrap), so their long labels overflowed. This lets
+   just those two wrap onto two lines instead. */
+.iba-btn-wrap { white-space: normal; text-align: center; line-height: 1.3; }
 
 /* ---------- Cards: gentle lift on hover (content cards only) ---------- */
 main .bg-white.rounded-2xl,
@@ -373,7 +426,7 @@ main button:hover:not(:disabled) { transform: translateY(-1px); }
    Hide the sidebar, navigation, buttons and footer; show the tables. */
 @media print {
     .iba-topbar, .iba-nav-tip, .iba-sidebar, .iba-sidebar-backdrop, .no-print,
-    footer, #ibaMobileMenuBtn, .btn { display: none !important; }
+    .iba-toast-stack, footer, #ibaMobileMenuBtn, .btn { display: none !important; }
     .iba-main { padding-top: 0 !important; }
     .iba-main { margin-left: 0 !important; }
     body { background: #fff !important; }
