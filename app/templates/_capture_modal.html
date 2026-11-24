@@ -3,7 +3,7 @@
      video box is capped so it never pushes the buttons off screen, and
      the page behind it cannot scroll while it is open. The camera is
      always stopped when the modal closes. -->
-<div id="captureModal" class="fixed inset-0 bg-slate-950/80 backdrop-blur-sm z-50 hidden items-center justify-center p-4">
+<div id="captureModal" class="fixed inset-0 bg-slate-950/80 backdrop-blur-sm z-50 hidden items-center justify-center p-4" style="z-index: 100;">
     <div class="bg-white rounded-2xl max-w-lg w-full shadow-2xl border border-slate-200 flex flex-col" style="max-height: 92vh;">
         <div class="flex justify-between items-center px-5 pt-4 pb-3 border-b border-slate-100 flex-shrink-0">
             <div class="min-w-0">
@@ -51,10 +51,10 @@
 
             <!-- Action Buttons -->
             <div class="flex flex-col sm:flex-row gap-2 pt-1">
-                <button id="startCaptureBtn" type="button" onclick="runAutomatedCaptureSequence()" class="btn btn-primary flex-1">
+                <button id="startCaptureBtn" type="button" onclick="runAutomatedCaptureSequence()" class="btn btn-primary flex-1 iba-btn-wrap">
                     <i class="fa-solid fa-camera mr-1.5"></i> Start 3-Angle Automated Capture
                 </button>
-                <button id="saveEmbeddingsBtn" type="button" onclick="submitCapturedPhotos()" disabled class="btn btn-gold flex-1">
+                <button id="saveEmbeddingsBtn" type="button" onclick="submitCapturedPhotos()" disabled class="btn btn-gold flex-1 iba-btn-wrap">
                     <i class="fa-solid fa-check mr-1.5"></i> Save & Generate 128-D Vector
                 </button>
             </div>
