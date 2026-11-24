@@ -7,9 +7,11 @@ v4 changes: the student PIN portal is replaced by CMS ID + password
 (see test_phase10.py), registration is open to every teacher, and
 the admin system is deleted.
 """
+import os
 import re
 import unittest
 from datetime import datetime, timedelta
+from unittest import mock
 
 from app import create_app, db
 from app.models import (AttendanceRecord, AttendanceSession, Student,
@@ -106,12 +108,32 @@ class Phase9TestCase(unittest.TestCase):
 
     # -- Password rules + open registration (v4) -------------------------
     def test_registration_is_open_for_a_second_teacher(self):
-        token = self._csrf_token('/auth/register')
-        resp = self.client.post('/auth/register', data={
-            'name': 'Second Teacher', 'email': 'second@iba-suk.edu.pk',
-            'department': 'Computer Science',
-            'password': 'Second123', 'confirm_password': 'Second123',
-            'csrf_token': token}, follow_redirects=True)
+        # v8.3: registration is verified by email — the account is
+        # created only after the 6-digit code is entered.
+        good_env = {
+            "SMTP_HOST": "smtp.gmail.com", "SMTP_PORT": "587",
+            "SMTP_USER": "teacher@gmail.com",
+            "SMTP_PASSWORD": "abcdefghijklmnop",
+        }
+        with mock.patch("app.services.email_service.smtplib.SMTP"), \
+                mock.patch("app.routes.auth._generate_otp_code",
+                           return_value="123456"), \
+                mock.patch.dict(os.environ, good_env):
+            token = self._csrf_token('/auth/register')
+            resp = self.client.post('/auth/register', data={
+                'name': 'Second Teacher', 'email': 'second@iba-suk.edu.pk',
+                'department': 'Computer Science',
+                'password': 'Second123', 'confirm_password': 'Second123',
+                'csrf_token': token}, follow_redirects=True)
+            self.assertEqual(resp.status_code, 200)
+            self.assertIn(b'Check your email', resp.data)
+            self.assertIsNone(
+                Teacher.query.filter_by(
+                    email='second@iba-suk.edu.pk').first())
+            token = self._csrf_token('/auth/register')
+            resp = self.client.post('/auth/verify-otp', data={
+                'email': 'second@iba-suk.edu.pk', 'code': '123456',
+                'csrf_token': token}, follow_redirects=True)
         self.assertEqual(resp.status_code, 200)
         self.assertIsNotNone(
             Teacher.query.filter_by(email='second@iba-suk.edu.pk').first())

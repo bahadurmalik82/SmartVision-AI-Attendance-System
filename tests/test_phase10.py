@@ -9,6 +9,7 @@ import sqlite3
 import tempfile
 import unittest
 from datetime import datetime, time, timedelta
+from unittest import mock
 
 from flask_bcrypt import Bcrypt
 
@@ -135,15 +136,34 @@ class Phase10TestCase(unittest.TestCase):
 
     # -- Open teacher registration -----------------------------------------
     def test_second_and_third_teachers_can_register(self):
+        # v8.3: registration is verified by email — the account is
+        # created only after the 6-digit code is entered.
+        good_env = {
+            "SMTP_HOST": "smtp.gmail.com", "SMTP_PORT": "587",
+            "SMTP_USER": "teacher@gmail.com",
+            "SMTP_PASSWORD": "abcdefghijklmnop",
+        }
         for i, email in enumerate(['t2@iba-suk.edu.pk',
                                    't3@iba-suk.edu.pk']):
             self.client.get('/auth/logout', follow_redirects=True)
-            token = self._csrf_token('/auth/register')
-            resp = self.client.post('/auth/register', data={
-                'name': f'Teacher {i + 2}', 'email': email,
-                'department': 'Computer Science',
-                'password': 'Teach1234', 'confirm_password': 'Teach1234',
-                'csrf_token': token}, follow_redirects=True)
+            with mock.patch("app.services.email_service.smtplib.SMTP"), \
+                    mock.patch("app.routes.auth._generate_otp_code",
+                               return_value="123456"), \
+                    mock.patch.dict(os.environ, good_env):
+                token = self._csrf_token('/auth/register')
+                resp = self.client.post('/auth/register', data={
+                    'name': f'Teacher {i + 2}', 'email': email,
+                    'department': 'Computer Science',
+                    'password': 'Teach1234', 'confirm_password': 'Teach1234',
+                    'csrf_token': token}, follow_redirects=True)
+                self.assertEqual(resp.status_code, 200)
+                self.assertIn(b'Check your email', resp.data)
+                self.assertIsNone(
+                    Teacher.query.filter_by(email=email).first())
+                token = self._csrf_token('/auth/register')
+                resp = self.client.post('/auth/verify-otp', data={
+                    'email': email, 'code': '123456',
+                    'csrf_token': token}, follow_redirects=True)
             self.assertEqual(resp.status_code, 200)
             self.assertIsNotNone(
                 Teacher.query.filter_by(email=email).first())

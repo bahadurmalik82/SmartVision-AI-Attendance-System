@@ -1,5 +1,8 @@
+import os
 import unittest
 from datetime import time
+from unittest import mock
+
 from app import create_app, db
 from app.models import Teacher, Schedule, CameraSource
 
@@ -38,7 +41,11 @@ class Phase2TestCase(unittest.TestCase):
         self.assertEqual(res_cam.status_code, 302)
 
     def test_teacher_register_and_login_flow(self):
-        """Verify teacher registration, login, and dashboard access."""
+        """Verify teacher registration, login, and dashboard access.
+
+        v8.3: registration is verified by email — the account is
+        created only after the 6-digit code is entered.
+        """
         # Register a new teacher
         reg_data = {
             'name': 'Dr. Muhammad Ismail Mangrio',
@@ -47,8 +54,27 @@ class Phase2TestCase(unittest.TestCase):
             'password': 'SuperSecretPassword2026',
             'confirm_password': 'SuperSecretPassword2026'
         }
-        res_reg = self.client.post('/auth/register', data=reg_data, follow_redirects=True)
-        self.assertEqual(res_reg.status_code, 200)
+        good_env = {
+            "SMTP_HOST": "smtp.gmail.com", "SMTP_PORT": "587",
+            "SMTP_USER": "teacher@gmail.com",
+            "SMTP_PASSWORD": "abcdefghijklmnop",
+        }
+        with mock.patch("app.services.email_service.smtplib.SMTP"), \
+                mock.patch("app.routes.auth._generate_otp_code",
+                           return_value="123456"), \
+                mock.patch.dict(os.environ, good_env):
+            res_reg = self.client.post('/auth/register', data=reg_data, follow_redirects=True)
+            self.assertEqual(res_reg.status_code, 200)
+            self.assertIn(b'Check your email', res_reg.data)
+            # No teacher exists until the code is verified.
+            self.assertIsNone(
+                Teacher.query.filter_by(
+                    email='ismail.mangrio@iba-suk.edu.pk').first())
+            res_verify = self.client.post('/auth/verify-otp', data={
+                'email': 'ismail.mangrio@iba-suk.edu.pk',
+                'code': '123456',
+            }, follow_redirects=True)
+            self.assertEqual(res_verify.status_code, 200)
 
         # Verify teacher exists in DB
         teacher = Teacher.query.filter_by(email='ismail.mangrio@iba-suk.edu.pk').first()
