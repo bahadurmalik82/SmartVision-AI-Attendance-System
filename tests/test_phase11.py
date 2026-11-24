@@ -103,7 +103,16 @@ class Phase11TestCase(unittest.TestCase):
             self.assertIn('I am Student', html, url)
             self.assertIn('Login Account', html, url)
             self.assertIn('Create Account', html, url)
-            self.assertIn('Student Portal', html, url)
+        # "Student Portal" links to the student page from the teacher
+        # pages; v8 removes the button on the student page itself
+        # (it would link to the page you are already on).
+        for url in ['/auth/login', '/auth/register']:
+            resp = self.client.get(url)
+            self.assertIn('Student Portal', resp.get_data(as_text=True), url)
+        resp = self.client.get('/student/login')
+        html = resp.get_data(as_text=True)
+        self.assertNotIn('Student Portal', html)
+        self.assertIn('You are signing in as a student.', html)
 
     def test_teacher_login_still_works_from_new_layout(self):
         resp = self._login_teacher()

@@ -5,8 +5,8 @@
     <div class="text-center mb-6 iba-auth-compact">
         <img src="{{ url_for('static', filename='img/logo.png') }}" alt="Attenova logo" class="w-16 h-16 object-contain mx-auto mb-2 rounded-2xl" onerror="this.style.display='none'">
         <p class="font-bold text-lg tracking-wide text-iba-blue">Attenova</p>
-        <p class="text-xs text-slate-400 mb-3">Smart AI Attendance</p>
-        <div class="iba-auth-icon w-16 h-16 bg-slate-100 text-iba-blue rounded-full flex items-center justify-center mx-auto mb-3 text-2xl">
+        <p class="text-xs text-slate-400 mb-2">Smart AI Attendance</p>
+        <div class="iba-auth-icon w-16 h-16 bg-slate-100 text-iba-blue rounded-full flex items-center justify-center mx-auto mb-2 text-2xl">
             <i class="fa-solid fa-user-graduate"></i>
         </div>
         <h1 class="text-2xl font-bold text-slate-900">Student Sign In</h1>
@@ -27,7 +27,6 @@
     </form>
 
     <p class="text-xs text-center text-slate-500 mt-4">
-        Forgot your password? Ask your teacher — they have your CMS ID and password.<br>
-        Are you a teacher? <a href="{{ url_for('auth.login') }}" class="text-iba-blue font-semibold hover:underline">Teacher login</a>
+        Forgot your password? Ask your teacher — they have your CMS ID and password.
     </p>
 {% endblock %}
