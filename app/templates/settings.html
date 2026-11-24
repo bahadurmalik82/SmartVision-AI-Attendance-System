@@ -26,6 +26,21 @@
         </form>
     </div>
 
+    <!-- v8.2: Email alerts — status + send yourself a test email. -->
+    <div class="bg-white p-6 rounded-2xl border border-slate-200 shadow-sm space-y-3">
+        <h2 class="font-bold text-slate-900">Email alerts</h2>
+        {% if email_status.configured %}
+        <p class="text-xs text-emerald-600 font-semibold">Email is set up — warnings go out from {{ email_status.user }} via {{ email_status.host }}:{{ email_status.port }}.</p>
+        {% else %}
+        <p class="text-xs text-amber-600 font-semibold">Email is not set up yet — the Send Alert Email button will tell you the same.</p>
+        {% endif %}
+        <form action="{{ url_for('settings.test_email') }}" method="POST">
+            <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
+            <button type="submit" class="btn btn-primary btn-sm">Send me a test email</button>
+        </form>
+        <p class="text-xs text-slate-500">Free, with Gmail: turn on 2-Step Verification, make an App Password for Mail (16 letters), add SMTP_HOST=smtp.gmail.com, SMTP_PORT=587, SMTP_USER=your Gmail, SMTP_PASSWORD=the App Password to .env, restart the app, then send yourself a test email here.</p>
+    </div>
+
     <div class="bg-white p-6 rounded-2xl border border-slate-200 shadow-sm space-y-3">
         <h2 class="font-bold text-slate-900">Your account</h2>
         <a href="{{ url_for('auth.change_password') }}" class="btn btn-secondary">Change password</a>
@@ -82,7 +97,7 @@
     <!-- v7: About Attenova — honest facts only. -->
     <div class="bg-white p-6 rounded-2xl border border-slate-200 shadow-sm space-y-3">
         <h2 class="font-bold text-slate-900">About Attenova</h2>
-        <p class="text-xs text-slate-500">Attenova v8.1 — AI-powered smart attendance and duration tracking. Built with Flask + SQLite. 4 ML models benchmarked (SVM, KNN, Random Forest, Logistic Regression) on 128-D face embeddings. Presence is tracked in 10-minute blocks, and 75% attendance is needed for final-exam eligibility.</p>
+        <p class="text-xs text-slate-500">Attenova v8.2 — AI-powered smart attendance and duration tracking. Built with Flask + SQLite. 4 ML models benchmarked (SVM, KNN, Random Forest, Logistic Regression) on 128-D face embeddings. Presence is tracked in 10-minute blocks, and 75% attendance is needed for final-exam eligibility.</p>
     </div>
 
     <!-- v8: Data management — the one place for backup and export. -->

@@ -18,6 +18,7 @@ from flask_login import current_user, login_required
 from app import db
 from app.models import AuditLog
 from app.services.audit import log_action
+from app.services.email_service import email_status, send_test_email
 from app.services.settings import (get_late_threshold, get_threshold,
                                    set_setting)
 
@@ -55,7 +56,21 @@ def index():
     return render_template('settings.html',
                            threshold=get_threshold(),
                            late_threshold=get_late_threshold(),
-                           audit_entries=audit_entries)
+                           audit_entries=audit_entries,
+                           email_status=email_status())
+
+
+@settings_bp.route('/test-email', methods=['POST'])
+@login_required
+def test_email():
+    """Send a test email to the teacher's own inbox (SMTP_USER), so the
+    email setup can be checked without warning a real student."""
+    sent, message = send_test_email()
+    log_action('test_email',
+               f'{current_user.email} sent a test email: '
+               f'{"sent" if sent else "failed"}.')
+    flash(message, 'success' if sent else 'warning')
+    return redirect(url_for('settings.index'))
 
 
 @settings_bp.route('/backup')
