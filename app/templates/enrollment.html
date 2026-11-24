@@ -11,29 +11,29 @@
     </div>
 
     {% if unassigned %}
-    <div class="bg-amber-50 border border-amber-200 rounded-2xl p-4 text-xs text-amber-800">
+    <div class="bg-amber-50 border border-amber-200 rounded-2xl p-4 text-xs text-amber-600">
         <strong>{{ unassigned }} student(s) have no class yet.</strong> They were enrolled before classes existed. Open a class below is not possible for them — enrol them again into a class, or contact support. They will not be marked in any class until they belong to one.
     </div>
     {% endif %}
 
-    <!-- How classes work -->
-    <div class="bg-slate-100 border border-slate-200 rounded-2xl p-4 text-xs text-slate-700 flex items-start space-x-3">
-        <i class="fa-solid fa-layer-group text-2xl text-iba-blue mt-0.5"></i>
-        <div class="space-y-1">
-            <h4 class="font-bold text-sm">How classes work</h4>
-            <p class="text-slate-600 leading-relaxed">
-                A class is one group you teach — for example <strong>BS Computer Science - AI, Section B, Semester 5</strong>.
-                Make a separate class for Section C, for Semester 3, or for a different department.
-                Students are enrolled <strong>into a class</strong> (one by one, or by CSV), and each class has its own student list.
-                When a class moves to a new semester, <strong>create a new class</strong> for it — do not edit the old one — so last semester's students and attendance stay saved until you delete that class yourself.
-            </p>
-        </div>
-    </div>
+    <!-- How classes work (v8: collapsed by default so the forms stay visible) -->
+    <details class="bg-slate-100 border border-slate-200 rounded-2xl p-4 text-xs text-slate-700">
+        <summary class="cursor-pointer flex items-center gap-2">
+            <i class="fa-solid fa-layer-group text-2xl text-iba-blue"></i>
+            <h2 class="font-bold text-sm">How classes work</h2>
+        </summary>
+        <p class="text-slate-600 leading-relaxed mt-2">
+            A class is one group you teach — for example <strong>BS Computer Science - AI, Section B, Semester 5</strong>.
+            Make a separate class for Section C, for Semester 3, or for a different department.
+            Students are enrolled <strong>into a class</strong> (one by one, or by CSV), and each class has its own student list.
+            When a class moves to a new semester, <strong>create a new class</strong> for it — do not edit the old one — so last semester's students and attendance stay saved until you delete that class yourself.
+        </p>
+    </details>
 
     <!-- Create a class + Register a student -->
     <div class="grid grid-cols-1 lg:grid-cols-2 gap-6">
         <div class="bg-white p-6 rounded-2xl border border-slate-200 shadow-sm space-y-4">
-            <h3 class="text-sm font-bold text-slate-800 flex items-center">
+            <h3 class="text-sm font-bold text-slate-900 flex items-center">
                 <i class="fa-solid fa-layer-group text-iba-blue mr-2"></i> Create a New Class
             </h3>
             <form action="{{ url_for('students.create_class') }}" method="POST" class="space-y-3 text-xs">
@@ -71,41 +71,43 @@
         </div>
 
         <!-- Register New Student (into a class) -->
-        <div class="bg-white p-6 rounded-2xl border border-slate-200 shadow-sm space-y-4">
-            <h3 class="text-sm font-bold text-slate-800 flex items-center">
+        <!-- v8: a student must belong to a class, so while no class
+             exists this card is disabled (controls off, note shown). -->
+        <div class="bg-white p-6 rounded-2xl border border-slate-200 shadow-sm space-y-4 {% if not classes %}opacity-60{% endif %}" {% if not classes %}aria-disabled="true"{% endif %}>
+            <h3 class="text-sm font-bold text-slate-900 flex items-center">
                 <i class="fa-solid fa-id-card text-iba-blue mr-2"></i> Register New Student
             </h3>
             <form action="{{ url_for('students.enroll') }}" method="POST" class="space-y-3 text-xs">
                 <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
                 <div>
                     <label class="block font-semibold text-slate-600 mb-1">Class (required)</label>
-                    <select name="class_group_id" required class="w-full px-3 py-2 border rounded-lg focus:ring-2 focus:ring-iba-blue bg-white">
+                    <select name="class_group_id" required {% if not classes %}disabled{% endif %} class="w-full px-3 py-2 border rounded-lg focus:ring-2 focus:ring-iba-blue bg-white">
                         <option value="">— Choose a class —</option>
                         {% for g in classes %}
                         <option value="{{ g.id }}">{{ g.display_name() }}{% if g.course_name %} · {{ g.course_name }}{% endif %}</option>
                         {% endfor %}
                     </select>
                     {% if not classes %}
-                    <p class="text-xs text-rose-600 mt-1">Create a class first (form on the left), then enrol students into it.</p>
+                    <p class="text-xs text-rose-600 mt-1">Create a class first — a student must belong to a class.</p>
                     {% endif %}
                 </div>
                 <div>
                     <label class="block font-semibold text-slate-600 mb-1">Roll Number (Unique ID)</label>
-                    <input type="text" name="roll_number" required placeholder="e.g. 023-24-0001" class="w-full px-3 py-2 border rounded-lg focus:ring-2 focus:ring-iba-blue uppercase font-semibold">
+                    <input type="text" name="roll_number" required {% if not classes %}disabled{% endif %} placeholder="e.g. 023-24-0001" class="w-full px-3 py-2 border rounded-lg focus:ring-2 focus:ring-iba-blue uppercase font-semibold">
                 </div>
                 <div>
                     <label class="block font-semibold text-slate-600 mb-1">Full Student Name</label>
-                    <input type="text" name="name" required placeholder="e.g. Ali Raza" class="w-full px-3 py-2 border rounded-lg focus:ring-2 focus:ring-iba-blue">
+                    <input type="text" name="name" required {% if not classes %}disabled{% endif %} placeholder="e.g. Ali Raza" class="w-full px-3 py-2 border rounded-lg focus:ring-2 focus:ring-iba-blue">
                 </div>
                 <div>
                     <label class="block font-semibold text-slate-600 mb-1">Student Email</label>
-                    <input type="email" name="email" placeholder="ali@university.edu" class="w-full px-3 py-2 border rounded-lg focus:ring-2 focus:ring-iba-blue">
+                    <input type="email" name="email" {% if not classes %}disabled{% endif %} placeholder="ali@university.edu" class="w-full px-3 py-2 border rounded-lg focus:ring-2 focus:ring-iba-blue">
                 </div>
                 <div class="p-3 bg-slate-50 border border-slate-200 rounded-lg">
                     <p class="font-semibold text-slate-700"><i class="fa-solid fa-key text-iba-gold mr-1"></i> Student login is automatic</p>
                     <p class="text-xs text-slate-500 mt-1">When you save a student, the system gives them a unique <strong>CMS ID</strong> (CMS-0001, CMS-0002, ...) and a random <strong>password</strong>. Share both with the student — they log in with them on the Student Portal. You can see every student's CMS ID and password on their class page.</p>
                 </div>
-                <button type="submit" class="btn btn-primary w-full mt-2">
+                <button type="submit" class="btn btn-primary w-full mt-2" {% if not classes %}disabled{% endif %}>
                     Save Profile & Next
                 </button>
             </form>
@@ -114,11 +116,11 @@
 
     <!-- Bulk import (into a class) -->
     <div class="bg-white p-6 rounded-2xl border border-slate-200 shadow-sm space-y-3">
-        <h3 class="text-sm font-bold text-slate-800 flex items-center">
+        <h3 class="text-sm font-bold text-slate-900 flex items-center">
             <i class="fa-solid fa-file-csv text-iba-blue mr-2"></i> Bulk Import Students (.csv)
         </h3>
         <p class="text-xs text-slate-500">Upload a CSV of students to add them all to one class at once. Columns: <code>roll_number, name, department, semester, section, email, password</code> — only roll number and name are required; a blank password means a random one is made for that student. Every imported student gets a CMS ID and password.</p>
-        <form action="{{ url_for('students.import_csv') }}" method="POST" enctype="multipart/form-data" class="flex flex-col md:flex-row gap-2 items-start md:items-center text-xs">
+        <form action="{{ url_for('students.import_csv') }}" method="POST" enctype="multipart/form-data" class="flex flex-col md:flex-row gap-3 items-start md:items-center text-xs">
             <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
             <label class="font-semibold text-slate-600">Into class:</label>
             <select name="class_group_id" required class="px-3 py-2 border rounded-lg focus:ring-2 focus:ring-iba-blue bg-white">
@@ -129,7 +131,7 @@
             </select>
             <input type="file" name="csv_file" accept=".csv" required class="text-xs">
             <button type="submit" class="btn btn-secondary btn-sm">Import CSV</button>
-            <a href="{{ url_for('students.import_sample') }}" class="text-iba-blue font-semibold hover:underline">Download sample CSV</a>
+            <a href="{{ url_for('students.import_sample') }}" class="btn btn-secondary btn-sm">Download sample CSV</a>
             <a href="{{ url_for('students.export_csv') }}" class="btn btn-secondary btn-sm"><i class="fa-solid fa-file-csv mr-1"></i> Export all students (CSV)</a>
         </form>
     </div>

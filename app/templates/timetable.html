@@ -12,9 +12,7 @@
 
     <!-- Form to Add New Class -->
     <div class="bg-white p-6 rounded-2xl border border-slate-200 shadow-sm">
-        <h3 class="text-sm font-bold text-slate-800 mb-4 flex items-center">
-            <i class="fa-solid fa-plus-circle text-iba-blue mr-2"></i> Add Recurrent Class to Timetable
-        </h3>
+        <h2 class="text-sm font-bold text-slate-900 mb-4">Add Recurrent Class to Timetable</h2>
         <form action="{{ url_for('timetable.add') }}" method="POST" class="grid grid-cols-1 md:grid-cols-4 gap-4 text-xs">
             <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
             <div>
@@ -58,8 +56,8 @@
                 <label class="block font-semibold text-slate-600 mb-1">Lecture End Time</label>
                 <input type="time" name="end_time" required value="10:40" class="w-full px-3 py-2 border rounded-lg focus:ring-2 focus:ring-iba-blue">
             </div>
-            <div class="md:col-span-2 flex items-end">
-                <button type="submit" class="btn btn-primary w-full">
+            <div class="md:col-span-2 flex items-end justify-center">
+                <button type="submit" class="btn btn-primary">
                     Save Class to Weekly Schedule
                 </button>
             </div>
@@ -68,9 +66,9 @@
 
     <!-- Active Schedules Table -->
     <div class="bg-white rounded-2xl border border-slate-200 shadow-sm overflow-hidden">
-        <div class="p-4 border-b border-slate-100 flex justify-between items-center bg-slate-50">
-            <h3 class="font-bold text-xs uppercase tracking-wider text-slate-600">Active Weekly Timetable</h3>
-            <span class="text-xs text-slate-500">Repeats every week automatically</span>
+        <div class="p-4 border-b border-slate-100 flex flex-wrap items-center gap-x-3 gap-y-1 bg-slate-50">
+            <h3 class="text-sm font-bold text-slate-900">Active Weekly Timetable</h3>
+            <span class="text-sm text-slate-500">Repeats every week automatically</span>
         </div>
         <div class="overflow-x-auto">
             <table class="w-full text-left text-xs">
@@ -89,7 +87,7 @@
                 <tbody class="divide-y divide-slate-100">
                     {% for s in schedules %}
                     <tr class="hover:bg-slate-50/80 transition">
-                        <td class="p-3.5 font-bold text-slate-800">
+                        <td class="p-3.5 font-bold text-slate-900">
                             {{ s.course_code }}
                             <span class="font-normal text-slate-500 block">{{ s.course_name }}</span>
                         </td>
