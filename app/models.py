@@ -114,6 +114,57 @@ def get_or_create_class_group(teacher_id, department, semester, section,
     return group
 
 
+class PendingRegistration(db.Model):
+    """A teacher registration waiting for its email verification code.
+
+    v8.3: registering no longer creates the Teacher row straight
+    away. The teacher's details and the bcrypt password hash wait
+    here until the 6-digit code sent to their email is entered
+    correctly. The code itself is NEVER stored — only its HMAC-SHA256
+    (keyed with the app SECRET_KEY) lives in ``otp_hash``. The row
+    is deleted as soon as the code is verified, expires, or is
+    exhausted by too many wrong tries / resends.
+    """
+    __tablename__ = 'pending_registrations'
+
+    id = db.Column(db.Integer, primary_key=True)
+    email = db.Column(db.String(150), unique=True, nullable=False, index=True)
+    name = db.Column(db.String(120), nullable=False)
+    department = db.Column(db.String(100), default='Computer Science')
+    # bcrypt hash of the chosen password (never the plain password).
+    password_hash = db.Column(db.String(256), nullable=False)
+    # HMAC-SHA256 of the 6-digit code (never the plain code).
+    otp_hash = db.Column(db.String(128), nullable=False)
+    attempts = db.Column(db.Integer, default=0, nullable=False)
+    resend_count = db.Column(db.Integer, default=0, nullable=False)
+    last_sent_at = db.Column(db.DateTime, nullable=False)
+    expires_at = db.Column(db.DateTime, nullable=False)
+    created_at = db.Column(db.DateTime, default=datetime.utcnow)
+
+    def __repr__(self):
+        return f"<PendingRegistration {self.email}>"
+
+
+class StudentAlertState(db.Model):
+    """Last attendance band a student was alerted about (v8.3).
+
+    Automatic drop alerts fire the FIRST time a student moves into a
+    worse band (warning / barred) and never send the same band twice
+    in a row: ``last_kind`` remembers the band of the last email sent
+    (or 'eligible' when the student is fine). When the student
+    recovers to 'eligible', the next drop alerts again.
+    """
+    __tablename__ = 'student_alert_states'
+
+    student_id = db.Column(db.Integer, db.ForeignKey('students.id'),
+                           primary_key=True)
+    last_kind = db.Column(db.String(20), default='eligible', nullable=False)
+    last_sent_at = db.Column(db.DateTime, nullable=True)
+
+    def __repr__(self):
+        return f"<StudentAlertState {self.student_id}={self.last_kind}>"
+
+
 class CameraSource(db.Model):
     """Registered video cameras (Built-in/USB Webcams or Mobile IP Webcam streams)."""
     __tablename__ = 'camera_sources'

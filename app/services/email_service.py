@@ -163,3 +163,30 @@ def send_test_email():
     if sent:
         return True, f"Test email sent to {user}."
     return False, error
+
+
+def send_verification_code(to_email, code):
+    """Send a 6-digit registration verification code (v8.3).
+
+    The code itself is only ever in this email — it is never logged
+    or stored. Returns (sent: bool, message: str). Never raises.
+    """
+    if not is_configured():
+        return False, NOT_CONFIGURED_MSG
+
+    sender = os.environ.get("SMTP_FROM") or os.environ["SMTP_USER"]
+    msg = EmailMessage()
+    msg["Subject"] = "Your Attenova verification code"
+    msg["From"] = sender
+    msg["To"] = to_email
+    msg.set_content(
+        f"Your Attenova verification code is: {code}\n\n"
+        "It expires in 2 minutes. If you did not ask for this, "
+        "ignore this email.\n\n"
+        "— Attenova\n"
+    )
+
+    sent, error = _send(msg)
+    if sent:
+        return True, f"Verification code sent to {to_email}."
+    return False, error

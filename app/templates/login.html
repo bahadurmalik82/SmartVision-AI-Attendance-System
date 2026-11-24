@@ -77,4 +77,136 @@
         </p>
     </form>
     {% endif %}
+
+    {% if show_otp %}
+    {# v8.3: email verification popup. A native <dialog> is used on
+       purpose: showModal() puts it in the top layer, so it opens
+       centred on the whole screen even though the auth page's grid
+       keeps a transform animation (a fixed div here would be pinned
+       to the grid, like the capture modal was before v8.1). #}
+    <dialog id="ibaOtpDialog" class="bg-white rounded-2xl border border-slate-200 shadow-lg w-full max-w-sm m-auto"
+            data-expires-in="{{ otp_expires_in | default(120) }}"
+            data-resend-in="{{ otp_resend_in | default(30) }}">
+        <div class="space-y-4 text-center">
+            <div class="w-14 h-14 bg-slate-100 text-iba-blue rounded-full flex items-center justify-center mx-auto text-2xl">
+                <i class="fa-solid fa-envelope-circle-check"></i>
+            </div>
+            <div>
+                <h3 class="text-lg font-bold text-slate-900">Check your email</h3>
+                <p class="text-xs text-slate-500 mt-1">We sent a 6-digit code to <strong class="text-slate-700">{{ otp_email }}</strong>. It expires in 2 minutes.</p>
+            </div>
+            <p id="ibaOtpCountdown" class="text-xs font-semibold text-iba-blue">Code expires in {{ '%d:%02d' % ((otp_expires_in | default(120)) // 60, (otp_expires_in | default(120)) % 60) }}</p>
+            <p id="ibaOtpError" class="text-xs text-red-600 font-semibold {% if not otp_error %}hidden{% endif %}">{{ otp_error or '' }}</p>
+            {% if otp_note %}
+            <p class="text-xs text-emerald-600 font-semibold">{{ otp_note }}</p>
+            {% endif %}
+            <form id="ibaOtpForm" action="{{ url_for('auth.verify_otp') }}" method="POST">
+                <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
+                <input type="hidden" name="email" value="{{ otp_email }}">
+                <input type="hidden" name="code" id="ibaOtpCode" value="">
+                <div class="flex justify-center gap-2">
+                    <input type="text" inputmode="numeric" pattern="[0-9]*" maxlength="1" autocomplete="one-time-code" class="iba-otp-box w-11 h-12 text-center text-lg font-bold border rounded-lg focus:ring-2 focus:ring-iba-blue focus:outline-none" aria-label="Digit 1">
+                    <input type="text" inputmode="numeric" pattern="[0-9]*" maxlength="1" class="iba-otp-box w-11 h-12 text-center text-lg font-bold border rounded-lg focus:ring-2 focus:ring-iba-blue focus:outline-none" aria-label="Digit 2">
+                    <input type="text" inputmode="numeric" pattern="[0-9]*" maxlength="1" class="iba-otp-box w-11 h-12 text-center text-lg font-bold border rounded-lg focus:ring-2 focus:ring-iba-blue focus:outline-none" aria-label="Digit 3">
+                    <input type="text" inputmode="numeric" pattern="[0-9]*" maxlength="1" class="iba-otp-box w-11 h-12 text-center text-lg font-bold border rounded-lg focus:ring-2 focus:ring-iba-blue focus:outline-none" aria-label="Digit 4">
+                    <input type="text" inputmode="numeric" pattern="[0-9]*" maxlength="1" class="iba-otp-box w-11 h-12 text-center text-lg font-bold border rounded-lg focus:ring-2 focus:ring-iba-blue focus:outline-none" aria-label="Digit 5">
+                    <input type="text" inputmode="numeric" pattern="[0-9]*" maxlength="1" class="iba-otp-box w-11 h-12 text-center text-lg font-bold border rounded-lg focus:ring-2 focus:ring-iba-blue focus:outline-none" aria-label="Digit 6">
+                </div>
+                <button type="submit" class="btn btn-primary w-full mt-4">Verify &amp; create account</button>
+            </form>
+            <form id="ibaOtpResendForm" action="{{ url_for('auth.resend_otp') }}" method="POST">
+                <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
+                <input type="hidden" name="email" value="{{ otp_email }}">
+                <button type="submit" id="ibaOtpResend" class="btn btn-secondary w-full" disabled>Resend in 0:30</button>
+            </form>
+            <p class="text-xs text-slate-500"><a href="{{ url_for('auth.register') }}" class="text-iba-blue font-semibold hover:underline">Use a different email</a></p>
+        </div>
+    </dialog>
+    <style>
+        #ibaOtpDialog { border: none; padding: 1.5rem; }
+        #ibaOtpDialog::backdrop { background: rgba(15, 23, 42, 0.6); }
+    </style>
+    <script>
+    (function () {
+        'use strict';
+        var dialog = document.getElementById('ibaOtpDialog');
+        if (!dialog) return;
+        if (typeof dialog.showModal === 'function' && !dialog.open) {
+            dialog.showModal();
+        }
+        dialog.addEventListener('click', function (e) {
+            if (e.target === dialog) dialog.close();
+        });
+        var boxes = Array.prototype.slice.call(
+            document.querySelectorAll('.iba-otp-box'));
+        var codeInput = document.getElementById('ibaOtpCode');
+        var form = document.getElementById('ibaOtpForm');
+        var errorLine = document.getElementById('ibaOtpError');
+        var countdownEl = document.getElementById('ibaOtpCountdown');
+        var resendBtn = document.getElementById('ibaOtpResend');
+        var remain = parseInt(dialog.getAttribute('data-expires-in') || '120', 10);
+        var resendIn = parseInt(dialog.getAttribute('data-resend-in') || '30', 10);
+        if (!boxes.length) return;
+        boxes[0].focus();
+        boxes.forEach(function (box, i) {
+            box.addEventListener('input', function () {
+                box.value = box.value.replace(/\D/g, '').slice(0, 1);
+                if (box.value && i < boxes.length - 1) boxes[i + 1].focus();
+            });
+            box.addEventListener('keydown', function (e) {
+                if (e.key === 'Backspace' && !box.value && i > 0) {
+                    boxes[i - 1].focus();
+                }
+            });
+            box.addEventListener('paste', function (e) {
+                e.preventDefault();
+                var data = e.clipboardData || window.clipboardData;
+                var text = ((data && data.getData('text')) || '')
+                    .replace(/\D/g, '').slice(0, 6);
+                text.split('').forEach(function (ch, j) {
+                    if (boxes[j]) boxes[j].value = ch;
+                });
+                if (text.length) boxes[Math.min(text.length, 5)].focus();
+            });
+        });
+        form.addEventListener('submit', function (e) {
+            var code = boxes.map(function (b) { return b.value; }).join('');
+            if (code.length !== 6) {
+                e.preventDefault();
+                if (errorLine) {
+                    errorLine.textContent = 'Enter all 6 digits of the code.';
+                    errorLine.classList.remove('hidden');
+                }
+                return;
+            }
+            codeInput.value = code;
+        });
+        function fmt(s) {
+            s = Math.max(0, s);
+            return Math.floor(s / 60) + ':' +
+                String(s % 60).padStart(2, '0');
+        }
+        function tick() {
+            if (countdownEl) {
+                countdownEl.textContent = remain > 0
+                    ? 'Code expires in ' + fmt(remain)
+                    : 'Code expired — ask for a new code below.';
+            }
+            if (resendBtn) {
+                if (resendIn > 0) {
+                    resendBtn.disabled = true;
+                    resendBtn.textContent = 'Resend in ' + fmt(resendIn);
+                } else {
+                    resendBtn.disabled = false;
+                    resendBtn.textContent = 'Resend code';
+                }
+            }
+            if (remain > 0) remain -= 1;
+            if (resendIn > 0) resendIn -= 1;
+        }
+        tick();
+        setInterval(tick, 1000);
+    })();
+    </script>
+    {% endif %}
 {% endblock %}
