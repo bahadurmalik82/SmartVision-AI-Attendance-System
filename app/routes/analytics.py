@@ -375,6 +375,15 @@ def correct_record(record_id):
     record.manual_override = True
     record.override_reason = reason
     db.session.commit()
+    # v8.3: attendance changed — if this correction dropped the student
+    # into a worse band, they get their warning email now.
+    try:
+        from app.services.attendance_alerts import \
+            check_and_send_drop_alerts
+        check_and_send_drop_alerts(current_user.id,
+                                   student_ids=[record.student_id])
+    except Exception:
+        pass
     log_action('attendance_correct',
                f'{record.student.roll_number} record #{record.id}: '
                f'{status}, {minutes} min — {reason}')

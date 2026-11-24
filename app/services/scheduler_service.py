@@ -243,5 +243,15 @@ class AutomatedSchedulerService:
             db.session.add(rec)
 
         db.session.commit()
+        # v8.3: attendance changed — students who dropped into a worse
+        # band get their warning email now. Email must never break
+        # finalization, so any failure is swallowed here (the alert
+        # service itself never raises either).
+        try:
+            from app.services.attendance_alerts import \
+                check_and_send_drop_alerts
+            check_and_send_drop_alerts(session.teacher_id)
+        except Exception:
+            pass
         cls._duration_tracker.start_session(datetime.now())  # Reset
         return session
