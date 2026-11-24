@@ -52,7 +52,7 @@
         <div class="blob blob-2" aria-hidden="true"></div>
         <div class="blob blob-3" aria-hidden="true"></div>
         <div class="hero-inner">
-            <p class="hero-eyebrow reveal"><i class="fa-solid fa-graduation-cap"></i> AI-Powered Attendance &middot; Face Recognition</p>
+            <p class="hero-eyebrow reveal"><i class="fa-solid fa-graduation-cap"></i> AI-powered attendance &middot; face recognition</p>
             <h1 class="hero-title reveal">Attendance that takes<br>itself — <span class="hero-gold">accurately.</span></h1>
             <p class="hero-sub reveal">Attenova recognises every student by face, tracks how long each one is actually present in class, and tells the teacher — and the student — exactly where they stand. No registers. No proxies. No guessing.</p>
 
@@ -71,7 +71,9 @@
                     <span class="cta-go">Open my faculty portal <i class="fa-solid fa-arrow-right"></i></span>
                 </a>
             </div>
-            <p class="hero-demo reveal">Live demo — teacher: <strong>demo@iba-suk.edu.pk</strong> / <strong>Demo1234</strong> &middot; student: CMS ID <strong>CMS-0001</strong> (password is printed when you run <code>seed_demo.py</code> and shown on the Students page). New teacher? <a href="{{ url_for('auth.register') }}">Create your account</a>.</p>
+            <!-- v8: the demo-login line is gone (no demo account any more).
+                 The space is kept empty on purpose so nothing below moves. -->
+            <p class="hero-demo reveal" aria-hidden="true">&nbsp;</p>
         </div>
     </section>
 
@@ -231,7 +233,7 @@
                 <p class="footer-text"><a href="{{ url_for('student.login') }}">Student login</a><br><a href="{{ url_for('auth.login') }}">Teacher login</a><br><a href="{{ url_for('auth.register') }}">Register as a teacher</a></p>
             </div>
         </div>
-        <p class="footer-copy">&copy; 2026 Attenova &middot; Smart AI Attendance &middot; Crafted by Bahadur Ali &middot; v7.0</p>
+        <p class="footer-copy">&copy; 2026 Attenova &middot; Smart AI Attendance &middot; Crafted by Bahadur Ali &middot; v8.0</p>
     </footer>
 
 <script>

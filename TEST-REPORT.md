@@ -52,19 +52,17 @@ Command: `python -m unittest discover -s tests -v` → `Ran 52 tests — OK`
   and the scheduler tick is wrapped so an empty / not-ready DB only
   logs a warning.
 
-## Live server smoke test (seeded data)
+## Live server smoke test (v8: no demo account any more)
 
 ```
-python seed_demo.py     # run twice: 2nd run created 0 new sessions (idempotent)
 python run.py           # FLASK_ENV=production, port 5001
 /auth/login              -> 200
 / (logged out)           -> 302 to login
 /portal/                 -> 200
-login demo@iba-suk.edu.pk / Demo1234 -> 200, dashboard shows Machine Learning
+login (registered teacher account) -> 200, dashboard shows Machine Learning
 /analytics/              -> 200, shows Cluster 0 Star / 1 Inconsistent / 2 At-Risk
 /analytics/defaulters    -> 200
 /analytics/export-excel  -> 200, application/vnd.openxmlformats-officedocument.spreadsheetml.sheet, real .xlsx
-POST /portal/ K21-1123   -> 200, Usman Tariq found
 ```
 
 Seeded data verified in SQLite: 1 teacher, 6 students, 1 schedule,
@@ -103,5 +101,5 @@ average by 0.4%).
   (`SVC(probability=True)` deprecated in sklearn 1.9, `datetime.utcnow()`
   deprecated). Warnings only — nothing fails.
 - The shipped folder contains **no** `venv/`, `__pycache__`,
-  `.env`, `attendance.db`, or trained `.pkl` model. Run
-  `python seed_demo.py` after unzipping to recreate the demo data.
+  `.env`, `attendance.db`, or trained `.pkl` model. After unzipping,
+  register a teacher account on the site (there is no demo account).

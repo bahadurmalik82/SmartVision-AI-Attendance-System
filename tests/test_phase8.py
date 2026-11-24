@@ -113,8 +113,12 @@ class Phase8TestCase(unittest.TestCase):
         self.assertTrue(os.path.exists(env_example))
         with open(readme) as f:
             text = f.read()
-        self.assertIn('seed_demo.py', text)
-        self.assertIn('demo@iba-suk.edu.pk', text)
+        # v8: the demo account is gone — the README must not print
+        # demo credentials or tell the reader to run a seeder.
+        self.assertNotIn('demo@iba-suk.edu.pk', text)
+        self.assertNotIn('Demo1234', text)
+        self.assertNotIn('seed_demo.py', text)
+        self.assertIn('no demo account', text)
         with open(env_example) as f:
             env_text = f.read()
         self.assertIn('SECRET_KEY', env_text)
@@ -128,8 +132,9 @@ class Phase8TestCase(unittest.TestCase):
         self.assertIn('scipy', reqs)
         self.assertIn('openpyxl', reqs)
 
-    def test_seed_script_exists(self):
-        self.assertTrue(os.path.exists(os.path.join(BASE, 'seed_demo.py')))
+    def test_seed_script_removed(self):
+        # v8: the demo seeder is deleted — there is no demo account.
+        self.assertFalse(os.path.exists(os.path.join(BASE, 'seed_demo.py')))
 
     # --- Smoke test: every main page, logged in and logged out ---
     def test_smoke_logged_in_pages_never_500(self):

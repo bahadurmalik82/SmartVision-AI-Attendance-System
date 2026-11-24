@@ -104,8 +104,7 @@ python --version
 python -m venv venv
 venv\Scripts\activate
 pip install -r requirements.txt
-python seed_demo.py
 python run.py
 ```
 
-Open http://127.0.0.1:5000 — login: `demo@iba-suk.edu.pk` / `Demo1234`
+Open http://127.0.0.1:5000 — register a teacher account on the site (there is no demo account any more).

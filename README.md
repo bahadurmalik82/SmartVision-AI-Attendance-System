@@ -30,24 +30,20 @@ venv\Scripts\activate
 # 3. Install dependencies
 pip install -r requirements.txt
 
-# 4. Load demo data (no camera needed) — safe to run twice
-python seed_demo.py
-
-# 5. Run the app
+# 4. Run the app
 python run.py
 ```
 
 Open **http://127.0.0.1:5000** in your browser — you will see the
 Attenova landing page. Choose **I am a Student** or **I am a Teacher**.
 
-**Demo teacher login:** `demo@iba-suk.edu.pk` / `Demo1234`
-
-**Demo student logins:** run `python seed_demo.py` and it prints each
-demo student's CMS ID and password (also shown on the Students page),
-e.g. Ahmed Ali is CMS-0001 (~96%), Usman Tariq is CMS-0006 (~45%, a
-defaulter). Every student — demo or real — gets a unique CMS ID
-(CMS-0001, CMS-0002, ...) and a random password when enrolled or
-imported. The teacher can see both on the Students page.
+**First run:** there is no demo account any more. Register a new
+teacher account on the site (open registration — every teacher is the
+only owner of their own classes), then create a class and enrol
+students into it (one by one, or by CSV on the Students page). Every
+student gets a unique CMS ID (CMS-0001, CMS-0002, ...) and a random
+password when enrolled or imported. The teacher can see both on the
+Students page.
 
 > ⚠️ **Student passwords are stored in plain text on purpose** (in
 > the `portal_password_plain` column) so the teacher can tell a
@@ -56,10 +52,6 @@ imported. The teacher can see both on the Students page.
 > logs. If you ever publish this project publicly, change this design
 > first.
 >
-> ⚠️ **Before showing the project to outsiders, change the demo
-> teacher's password** (Settings → Change password) or delete the
-> demo account's data. The demo login is printed in this README on
-> purpose so you can test, but anyone who reads it can log in.
 > There is no admin account any more — every teacher is the only
 > owner of their own classes.
 
@@ -109,13 +101,15 @@ imported. The teacher can see both on the Students page.
   student order, and a fresh random password — and the NULL counts
   are checked (must be zero) before the app serves requests.
 
-## Demo flow (no camera needed)
+## First run (no camera needed)
 
-1. Open the landing page and click **I am a Teacher**, then **Login**
-   with the demo account above. (New teacher? Register — it is open.)
-2. **Dashboard** (`/dashboard`) — see the Machine Learning CS-302 schedule and totals.
-3. **Timetable** (`/timetable/`) — the weekly class, Tue–Fri 09:00–10:40.
-4. **Students** (`/students/`) — the 6 demo students.
+1. Open the landing page and click **I am a Teacher**, then register
+   a teacher account. (There is no demo account — registration is open.)
+2. **Dashboard** (`/dashboard`) — see your schedule and totals.
+3. **Timetable** (`/timetable/`) — add your weekly classes.
+4. **Students** (`/students/`) — create a class first, then enrol
+   students into it (one by one or by CSV). Each student gets a CMS ID
+   and password, shown on their class page.
 5. **Start Class Now** on the Dashboard, then **Stop Class** — a session is
    created and finalised (with no camera, everyone is marked Absent for
    that session, which is expected — see Known limits).
@@ -130,9 +124,8 @@ imported. The teacher can see both on the Students page.
    from enrolled students, or from the `Celebrity Images` dataset folder
    if you add one.
 9. **Student Portal** — click **I am a Student** on the landing
-   page (or go to `/student/login`) and log in with a demo student's
-   CMS ID + password (printed by `seed_demo.py`, e.g. CMS-0001 for
-   Ahmed Ali, ~96%, or CMS-0006 for Usman Tariq, ~45%, a defaulter).
+   page (or go to `/student/login`) and log in with a student's
+   CMS ID + password (shown on their class page after enrolment).
    The old `/portal/` URL redirects to the new login. Students can
    also change their password from their dashboard.
 
@@ -151,7 +144,6 @@ imported. The teacher can see both on the Students page.
 
 ```
 run.py / wsgi.py            Entry points (local / Hostinger Passenger)
-seed_demo.py                Demo data seeder (idempotent)
 app/
   __init__.py               Flask app factory (starts the scheduler)
   config.py                 dev / testing / production config
