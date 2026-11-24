@@ -33,7 +33,7 @@
         }
     </script>
 </head>
-<body class="bg-slate-50 text-slate-800 min-h-screen font-sans">
+<body class="bg-slate-50 text-slate-900 min-h-screen font-sans">
 <script>
     /* Apply remembered appearance prefs + desktop sidebar state
        before first paint, so nothing flashes. */
@@ -94,9 +94,9 @@
         </button>
 
         <!-- Sidebar head row: the collapse button lives here now (v7),
-             not on the top bar. Same id, same JS, same behaviour. -->
+             not on the top bar. Same id, same JS, same behaviour.
+             v8: no brand text here — "Attenova" lives in the top bar. -->
         <div class="iba-sidebar-head">
-            <span class="iba-sidebar-head-label">Attenova</span>
             <button id="ibaCollapseBtn" type="button" title="Collapse sidebar"
                     class="btn btn-ghost hidden md:flex w-9 h-9"
                     aria-label="Collapse sidebar">
@@ -124,17 +124,17 @@
                {% if request.endpoint == 'students.index' %}aria-current="page"{% endif %}">
                 <i class="fa-solid fa-user-plus"></i><span class="iba-nav-label">Students</span></a>
             <a href="{{ url_for('analytics.index') }}" title="Analytics" data-tip="Analytics"
-               class="iba-nav-link {{ 'iba-active' if request.endpoint == 'analytics.index' else '' }}
-               {% if request.endpoint == 'analytics.index' %}aria-current="page"{% endif %}">
+               class="iba-nav-link {{ 'iba-active' if request.endpoint in ('analytics.index', 'analytics.clusters') else '' }}
+               {% if request.endpoint in ('analytics.index', 'analytics.clusters') %}aria-current="page"{% endif %}">
                 <i class="fa-solid fa-chart-pie"></i><span class="iba-nav-label">Analytics</span></a>
             <a href="{{ url_for('analytics.benchmark') }}" title="ML Models" data-tip="ML Models"
                class="iba-nav-link {{ 'iba-active' if request.endpoint == 'analytics.benchmark' else '' }}
                {% if request.endpoint == 'analytics.benchmark' %}aria-current="page"{% endif %}">
                 <i class="fa-solid fa-brain"></i><span class="iba-nav-label">ML Models</span></a>
-            <a href="{{ url_for('analytics.defaulters') }}" title="Defaulters below 75%" data-tip="&lt;75% Defaulters"
+            <a href="{{ url_for('analytics.defaulters') }}" title="Defaulters" data-tip="Defaulters"
                class="iba-nav-link {{ 'iba-active' if request.endpoint == 'analytics.defaulters' else '' }}
                {% if request.endpoint == 'analytics.defaulters' %}aria-current="page"{% endif %}">
-                <i class="fa-solid fa-triangle-exclamation"></i><span class="iba-nav-label">&lt;75% Defaulters</span></a>
+                <i class="fa-solid fa-triangle-exclamation"></i><span class="iba-nav-label">Defaulters</span></a>
             {% endif %}
 
             <div class="mx-4 my-3 border-t border-white/10"></div>
@@ -201,9 +201,10 @@
             </main>
 
             <!-- Footer (v7) -->
+            <!-- v8: one centred footer line — links next to the copyright,
+                 clear spacing, no floating-right links. -->
             <footer class="iba-footer">
-                <p><span class="iba-footer-brand">Attenova</span> &mdash; Smart AI Attendance <span class="iba-footer-sep">&middot;</span> Crafted by <b>Bahadur Ali</b> <span class="iba-footer-sep">&middot;</span> v7.0</p>
-                <p><a href="{{ url_for('dashboard.index') }}">Dashboard</a> <span class="iba-footer-sep">&middot;</span> <a href="{{ url_for('settings.index') }}">Settings</a></p>
+                <p><span class="iba-footer-brand">Attenova</span> &mdash; Smart AI Attendance <span class="iba-footer-sep">&middot;</span> Crafted by <b>Bahadur Ali</b> <span class="iba-footer-sep">&middot;</span> v8.0 <span class="iba-footer-sep">&middot;</span> <a href="{{ url_for('dashboard.index') }}">Dashboard</a> <span class="iba-footer-sep">&middot;</span> <a href="{{ url_for('settings.index') }}">Settings</a></p>
             </footer>
         </div>
     </div>

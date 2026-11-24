@@ -31,7 +31,7 @@
             <div class="flex justify-between items-center pb-3 border-b border-slate-100">
                 <div class="flex items-center space-x-2">
                     <span class="w-3 h-3 rounded-full {% if active_session %}bg-emerald-500 animate-pulse{% else %}bg-slate-300{% endif %}"></span>
-                    <h2 class="font-bold text-slate-800 text-sm">
+                    <h2 class="font-bold text-slate-900 text-sm">
                         {% if active_session %}
                         Active Lecture: {{ active_session.course_name }} ({{ active_session.section }})
                         {% else %}
@@ -76,7 +76,7 @@
                     <!-- Browser Webcam / Standby View -->
                     <video id="browserVideo" autoplay playsinline muted class="w-full h-full object-contain hidden"></video>
                     <div id="standbyPlaceholder" class="text-center p-6 space-y-2">
-                        <i class="fa-solid fa-video text-4xl text-slate-600"></i>
+                        <i class="fa-solid fa-video text-2xl text-slate-600"></i>
                         <p class="text-sm font-semibold text-slate-300">
                             {{ active_cam.name if active_cam else 'No Camera Configured' }}
                         </p>
@@ -154,7 +154,7 @@
             <!-- Weekly Classes Preview -->
             <div class="bg-white rounded-2xl p-5 border border-slate-200 shadow-sm space-y-3">
                 <div class="flex justify-between items-center pb-2 border-b border-slate-100">
-                    <h2 class="font-bold text-xs uppercase tracking-wider text-slate-500">Upcoming Timetable</h2>
+                    <h2 class="font-bold text-sm text-slate-900">Upcoming timetable</h2>
                     <a href="{{ url_for('timetable.index') }}" class="btn btn-ghost btn-sm min-h-[44px] px-3"><i class="fa-solid fa-calendar-days mr-1"></i> Manage</a>
                 </div>
 
@@ -163,7 +163,7 @@
                         {% for s in schedules[:4] %}
                         <div class="flex items-center justify-between p-2.5 rounded-lg border border-slate-100 bg-slate-50/50 text-xs">
                             <div>
-                                <span class="font-bold text-slate-800">{{ s.course_code }}</span>
+                                <span class="font-bold text-slate-900">{{ s.course_code }}</span>
                                 <span class="text-slate-500 block">{{ s.course_name }}</span>
                             </div>
                             <div class="text-right">
@@ -235,7 +235,7 @@ function handleStreamError(img) {
     const container = document.getElementById('videoContainer');
     container.innerHTML = `
         <div class="text-center p-6 space-y-2 text-rose-600">
-            <i class="fa-solid fa-triangle-exclamation text-4xl text-rose-600"></i>
+            <i class="fa-solid fa-triangle-exclamation text-2xl text-rose-600"></i>
             <p class="text-sm font-semibold">Mobile IP Webcam Unreachable</p>
             <p class="text-xs text-slate-400 max-w-sm">
                 Ensure your phone is running <strong>IP Webcam</strong> and both phone & laptop are on the same Wi-Fi network.

@@ -18,17 +18,23 @@
     <div class="bg-slate-100 border border-slate-200 rounded-2xl p-4 text-xs text-slate-700 flex items-start space-x-3">
         <i class="fa-solid fa-book-open text-2xl text-iba-blue mt-0.5"></i>
         <div class="space-y-1">
-            <h4 class="font-bold text-sm">Course Evaluation Metrics (Week 7 of Teaching Plan):</h4>
+            <h2 class="font-bold text-sm">Course evaluation metrics (Week 7 of teaching plan)</h2>
             <p class="text-slate-600 leading-relaxed">
-                As required by <strong>CLO-2 and CLO-5</strong>, our system extracts 128-D feature representations and rigorously evaluates multiple candidate classifiers using <strong>5-Fold Cross-Validation, Weighted F1-Scores, Precision, Recall, and Confusion Matrices</strong>. The highest-performing model is automatically deployed for live recognition.
+                As required by <strong>CLO-2 and CLO-5</strong>, the system extracts 128-D feature representations and evaluates candidate classifiers. The highest-performing model is automatically deployed for live recognition.
             </p>
+            <ul class="list-disc list-inside text-slate-600 leading-relaxed">
+                <li>5-fold cross-validation</li>
+                <li>Weighted F1-scores</li>
+                <li>Precision and recall</li>
+                <li>Confusion matrices</li>
+            </ul>
         </div>
     </div>
 
     <!-- Training Action Card -->
     <div class="bg-white p-6 rounded-2xl border border-slate-200 shadow-sm flex flex-col sm:flex-row justify-between items-center gap-4">
         <div>
-            <h3 class="font-bold text-sm text-slate-800">Train & Benchmark Classifiers</h3>
+            <h3 class="font-bold text-sm text-slate-900">Train & Benchmark Classifiers</h3>
             <p class="text-xs text-slate-500 mt-0.5">Retrain all 4 models and update the Week 7 evaluation report.</p>
         </div>
         <form action="{{ url_for('analytics.train_model') }}" method="POST" class="flex items-center space-x-2">
@@ -50,7 +56,7 @@
     <div class="bg-white rounded-2xl border border-slate-200 shadow-sm overflow-hidden">
         <div class="p-4 border-b border-slate-100 flex justify-between items-center bg-slate-50">
             <div>
-                <h3 class="font-bold text-xs uppercase tracking-wider text-slate-600">Model Performance Comparison (Test Split &amp; 5-Fold CV)</h3>
+                <h3 class="font-bold text-sm text-slate-900">Model performance comparison (test split &amp; 5-fold CV)</h3>
                 <span class="text-xs text-slate-500">Evaluated across {{ report.total_samples }} samples and {{ report.total_classes }} classes</span>
             </div>
             <span class="bg-emerald-100 text-emerald-600 border border-emerald-300 px-3 py-1 rounded-full text-xs font-bold">
@@ -89,7 +95,7 @@
                             {% elif 'Forest' in name %}Week 13 (Ensemble Bagging)
                             {% else %}Week 5 (Logistic Reg L2){% endif %}
                         </td>
-                        <td class="p-3.5 font-bold text-slate-800">{{ metrics.accuracy }}%</td>
+                        <td class="p-3.5 font-bold text-slate-900">{{ metrics.accuracy }}%</td>
                         <td class="p-3.5 font-semibold text-iba-blue">{{ metrics.cv_accuracy }}%</td>
                         <td class="p-3.5 text-slate-600">{{ metrics.precision }}%</td>
                         <td class="p-3.5 text-slate-600">{{ metrics.recall }}%</td>
@@ -125,7 +131,7 @@
                 <table class="text-center text-xs">
                     <thead>
                         <tr class="bg-slate-100 text-slate-700">
-                            <th class="p-3 border-r border-slate-200 bg-slate-200 text-slate-900 font-bold">True \ Predicted</th>
+                            <th class="p-3 border-r border-slate-200 bg-slate-200 text-slate-900 font-bold">True &darr;<br><span class="font-semibold text-slate-600">Predicted &rarr;</span></th>
                             {% for cls in report.classes %}
                             <th class="p-3 border-r border-slate-200 font-bold max-w-[120px] truncate" title="{{ cls }}">{{ cls }}</th>
                             {% endfor %}
@@ -154,8 +160,8 @@
     {% else %}
     <!-- Placeholder before training -->
     <div class="bg-white p-12 rounded-2xl border border-slate-200 shadow-sm text-center space-y-3">
-        <i class="fa-solid fa-chart-column text-4xl text-slate-300"></i>
-        <h3 class="font-bold text-slate-800 text-base">No Benchmark Report Generated Yet</h3>
+        <i class="fa-solid fa-chart-column text-2xl text-slate-300"></i>
+        <h3 class="font-bold text-slate-900 text-base">No Benchmark Report Generated Yet</h3>
         <p class="text-xs text-slate-500 max-w-md mx-auto">
             Click <strong>"Train & Benchmark Now"</strong> above to extract 128-D features, train SVM, KNN, Random Forest, and Logistic Regression, and generate the Week 7 Confusion Matrix.
         </p>

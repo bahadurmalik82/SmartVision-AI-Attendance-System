@@ -12,7 +12,7 @@
         tailwind.config = { theme: { extend: { colors: { iba: { blue: '#003366', gold: '#D4AF37', dark: '#0A192F', accent: '#0D9488' } } } } }
     </script>
 </head>
-<body class="bg-slate-50 text-slate-800 min-h-screen font-sans">
+<body class="bg-slate-50 text-slate-900 min-h-screen font-sans">
     <header class="bg-iba-blue text-white">
         <div class="max-w-5xl mx-auto px-4 py-3 flex items-center gap-3">
             <img src="{{ url_for('static', filename='img/logo.png') }}" alt="Attenova logo" class="w-9 h-9 object-contain rounded-lg" onerror="this.style.display='none'">
@@ -31,7 +31,7 @@
         {% with messages = get_flashed_messages(with_categories=true) %}
             {% if messages %}
                 {% for category, message in messages %}
-                    <div class="iba-flash p-4 rounded-lg border text-sm {% if category == 'danger' %}bg-red-50 border-red-200 text-red-800{% elif category == 'success' %}bg-green-50 border-green-200 text-green-800{% elif category == 'warning' %}bg-yellow-50 border-yellow-200 text-yellow-800{% else %}bg-blue-50 border-blue-200 text-blue-800{% endif %}">
+                    <div class="iba-flash p-4 rounded-lg border text-sm {% if category == 'danger' %}bg-red-50 border-red-200 text-rose-600{% elif category == 'success' %}bg-green-50 border-green-200 text-emerald-600{% elif category == 'warning' %}bg-yellow-50 border-yellow-200 text-amber-600{% else %}bg-blue-50 border-blue-200 text-iba-blue{% endif %}">
                         {{ message }}
                     </div>
                 {% endfor %}
@@ -45,7 +45,7 @@
                 <p class="text-xs text-slate-500 mt-1 font-mono">{{ student.cms_id }} &middot; {{ student.roll_number }} &middot; {{ student.department }} &middot; {{ student.semester }} &middot; {{ student.section }}</p>
             </div>
             <div class="text-left sm:text-right">
-                <span class="text-3xl font-bold {% if overall >= threshold %}text-emerald-600{% elif overall >= threshold - 5 %}text-slate-700{% else %}text-rose-600{% endif %}">{{ overall }}%</span>
+                <span class="text-2xl font-bold {% if overall >= threshold %}text-emerald-600{% elif overall >= threshold - 5 %}text-slate-700{% else %}text-rose-600{% endif %}">{{ overall }}%</span>
                 <span class="block text-xs font-semibold uppercase tracking-wider text-slate-400">Overall Attendance</span>
                 {% if overall >= threshold %}
                 <span class="inline-block mt-1 bg-emerald-50 text-emerald-600 border border-emerald-200 px-2.5 py-0.5 rounded-full text-xs font-bold"><i class="fa-solid fa-circle-check mr-1"></i> Eligible for final exams</span>
@@ -84,7 +84,7 @@
         </div>
 
         {% if at_risk %}
-        <div class="p-4 bg-rose-50 border border-rose-200 rounded-2xl text-rose-700 text-sm">
+        <div class="p-4 bg-rose-50 border border-rose-200 rounded-2xl text-rose-600 text-sm">
             <strong><i class="fa-solid fa-triangle-exclamation mr-1"></i> What this means:</strong>
             Your attendance is below {{ threshold }}% in
             {% for s in at_risk %}<strong>{{ s.course_code or s.course_name }}</strong>{% if not loop.last %}, {% endif %}{% endfor %}.
@@ -92,7 +92,7 @@
             {{ at_risk[0].plan }} If you miss more classes, the number only grows — talk to your teacher if you have a genuine reason.
         </div>
         {% else %}
-        <div class="p-4 bg-emerald-50 border border-emerald-200 rounded-2xl text-emerald-700 text-sm">
+        <div class="p-4 bg-emerald-50 border border-emerald-200 rounded-2xl text-emerald-600 text-sm">
             <strong><i class="fa-solid fa-circle-check mr-1"></i> You are safe in every subject.</strong>
             Your attendance is above {{ threshold }}% everywhere. Keep attending to keep your buffer.
         </div>
@@ -110,7 +110,7 @@
                             <h3 class="font-bold text-slate-900">{{ s.course_code }} {{ s.course_name }}</h3>
                             <p class="text-xs text-slate-500">{{ s.held }} classes held &middot; {{ s.attended }} attended &middot; {{ s.absent }} absent &middot; {{ s.late }} late</p>
                         </div>
-                        <span class="px-2.5 py-0.5 rounded-full text-xs font-bold {% if s.status == 'Safe' %}bg-emerald-50 text-emerald-600 border border-emerald-200{% elif s.status == 'Warning' %}bg-yellow-50 text-yellow-700 border border-yellow-200{% else %}bg-rose-50 text-rose-600 border border-rose-200{% endif %}">{{ s.status }} &middot; {{ s.percentage }}%</span>
+                        <span class="px-2.5 py-0.5 rounded-full text-xs font-bold {% if s.status == 'Safe' %}bg-emerald-50 text-emerald-600 border border-emerald-200{% elif s.status == 'Warning' %}bg-yellow-50 text-amber-600 border border-yellow-200{% else %}bg-rose-50 text-rose-600 border border-rose-200{% endif %}">{{ s.status }} &middot; {{ s.percentage }}%</span>
                     </div>
                     <div class="h-3 bg-slate-100 rounded-full overflow-hidden">
                         <div class="h-full rounded-full {% if s.percentage >= threshold %}bg-emerald-500{% elif s.percentage >= threshold - 5 %}bg-yellow-500{% else %}bg-rose-500{% endif %}" style="width: {{ s.percentage }}%"></div>
@@ -127,7 +127,7 @@
         <!-- Absent list -->
         <div class="bg-white rounded-2xl border border-slate-200 shadow-sm overflow-hidden">
             <div class="p-4 border-b border-slate-100 bg-slate-50">
-                <h2 class="font-bold text-slate-800">My Absences <span class="text-xs text-slate-500 font-semibold">({{ absent_records|length }} classes missed)</span></h2>
+                <h2 class="font-bold text-slate-900">My Absences <span class="text-xs text-slate-500 font-semibold">({{ absent_records|length }} classes missed)</span></h2>
             </div>
             <div class="overflow-x-auto">
                 <table class="w-full text-left text-xs">
@@ -154,7 +154,7 @@
         <!-- Full history -->
         <div class="bg-white rounded-2xl border border-slate-200 shadow-sm overflow-hidden">
             <div class="p-4 border-b border-slate-100 bg-slate-50">
-                <h2 class="font-bold text-slate-800">Full Attendance History <span class="text-xs text-slate-500 font-semibold">(newest first)</span></h2>
+                <h2 class="font-bold text-slate-900">Full Attendance History <span class="text-xs text-slate-500 font-semibold">(newest first)</span></h2>
             </div>
             <div class="overflow-x-auto">
                 <table class="w-full text-left text-xs">
@@ -168,7 +168,7 @@
                             <td class="p-3.5 text-slate-500">{{ r.session.start_time.strftime('%I:%M %p') if r.session.start_time else '-' }}</td>
                             <td class="p-3.5">{{ r.session.course_name }}</td>
                             <td class="p-3.5">
-                                <span class="px-2 py-0.5 rounded text-xs font-semibold {% if r.status == 'Present' %}bg-emerald-50 text-emerald-600{% elif r.status == 'Late' %}bg-slate-100 text-slate-700{% elif r.status == 'Left Early' %}bg-yellow-50 text-yellow-700{% else %}bg-rose-50 text-rose-600{% endif %}">{{ r.status }}{% if r.manual_override %} (corrected){% endif %}</span>
+                                <span class="px-2 py-0.5 rounded text-xs font-semibold {% if r.status == 'Present' %}bg-emerald-50 text-emerald-600{% elif r.status == 'Late' %}bg-slate-100 text-slate-700{% elif r.status == 'Left Early' %}bg-yellow-50 text-amber-600{% else %}bg-rose-50 text-rose-600{% endif %}">{{ r.status }}{% if r.manual_override %} (corrected){% endif %}</span>
                             </td>
                             <td class="p-3.5">{{ r.minutes_present }} mins</td>
                             <td class="p-3.5 font-bold">{{ r.attendance_percentage }}%</td>
@@ -184,7 +184,7 @@
         <!-- Weekly timetable -->
         <div class="bg-white rounded-2xl border border-slate-200 shadow-sm overflow-hidden">
             <div class="p-4 border-b border-slate-100 bg-slate-50">
-                <h2 class="font-bold text-slate-800">My Weekly Timetable <span class="text-xs text-slate-500 font-semibold">({{ student.section }})</span></h2>
+                <h2 class="font-bold text-slate-900">My Weekly Timetable <span class="text-xs text-slate-500 font-semibold">({{ student.section }})</span></h2>
             </div>
             <div class="overflow-x-auto">
                 <table class="w-full text-left text-xs">
