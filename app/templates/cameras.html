@@ -73,7 +73,14 @@
             </div>
 
             <div class="overflow-x-auto flex-grow">
-                <table class="w-full text-left text-xs">
+                <table class="w-full text-left text-xs min-w-[620px]">
+                    <colgroup>
+                        <col style="width: 22%">
+                        <col style="width: 18%">
+                        <col style="width: 30%">
+                        <col style="width: 12%">
+                        <col style="width: 18%">
+                    </colgroup>
                     <thead class="bg-slate-100/70 text-sm text-slate-700 font-bold">
                         <tr>
                             <th class="p-3.5">Device Name</th>
@@ -86,9 +93,11 @@
                     <tbody class="divide-y divide-slate-100">
                         {% for cam in cameras %}
                         <tr class="hover:bg-slate-50/80 transition {% if cam.is_active %}bg-emerald-50/40{% endif %}">
-                            <td class="p-3.5 font-bold text-slate-900 flex items-center">
-                                <i class="fa-solid {% if cam.camera_type == 'ip_webcam' %}fa-mobile-screen text-iba-blue{% else %}fa-camera text-slate-500{% endif %} mr-2"></i>
-                                {{ cam.name }}
+                            <td class="p-3.5 font-bold text-slate-900 whitespace-nowrap">
+                                <div class="flex items-center gap-2 min-w-0">
+                                    <i class="fa-solid {% if cam.camera_type == 'ip_webcam' %}fa-mobile-screen text-iba-blue{% else %}fa-camera text-slate-500{% endif %} flex-shrink-0"></i>
+                                    <span class="truncate" title="{{ cam.name }}">{{ cam.name }}</span>
+                                </div>
                             </td>
                             <td class="p-3.5 text-slate-600">
                                 {% if cam.camera_type == 'ip_webcam' %}
@@ -97,33 +106,35 @@
                                 <span class="bg-slate-100 text-slate-700 border border-slate-200 px-2 py-0.5 rounded text-xs font-medium">Browser / USB</span>
                                 {% endif %}
                             </td>
-                            <td class="p-3.5 font-mono text-xs text-slate-500">
-                                {{ cam.stream_url if cam.stream_url else 'Built-in / Local Hardware' }}
+                            <td class="p-3.5 font-mono text-xs text-slate-500 break-all">
+                                <div class="max-w-[220px] break-all">{{ cam.stream_url if cam.stream_url else 'Built-in / Local Hardware' }}</div>
                             </td>
                             <td class="p-3.5">
                                 {% if cam.is_active %}
-                                <span class="bg-emerald-100 text-emerald-600 border border-emerald-300 px-2.5 py-0.5 rounded-full font-bold text-xs">
+                                <span class="bg-emerald-100 text-emerald-600 border border-emerald-300 px-2.5 py-0.5 rounded-full font-bold text-xs whitespace-nowrap">
                                     <i class="fa-solid fa-circle-dot mr-1 text-emerald-600 animate-pulse"></i> Primary Active
                                 </span>
                                 {% else %}
-                                <span class="text-slate-400 text-xs">Standby</span>
+                                <span class="text-slate-400 text-xs whitespace-nowrap">Standby</span>
                                 {% endif %}
                             </td>
-                            <td class="p-3.5 text-right space-x-2">
+                            <td class="p-3.5 text-right whitespace-nowrap">
+                                <div class="flex items-center justify-end gap-2">
                                 {% if not cam.is_active %}
                                 <form action="{{ url_for('cameras.set_active', camera_id=cam.id) }}" method="POST" class="inline">
             <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
-                                    <button type="submit" class="bg-emerald-50 hover:bg-emerald-100 text-emerald-600 border border-emerald-300 px-2.5 py-1 rounded text-xs font-semibold">
+                                    <button type="submit" class="bg-emerald-50 hover:bg-emerald-100 text-emerald-600 border border-emerald-300 px-2.5 py-1 rounded text-xs font-semibold whitespace-nowrap">
                                         Use This Camera
                                     </button>
                                 </form>
                                 {% endif %}
                                 <form action="{{ url_for('cameras.delete', camera_id=cam.id) }}" method="POST" class="inline" data-iba-confirm data-iba-confirm-title="Remove camera?" data-iba-confirm-message="This camera will be removed from your monitoring list." data-iba-confirm-text="Remove">
             <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
-                                    <button type="submit" class="text-rose-600 hover:text-rose-600 text-xs px-2 py-1 rounded border border-rose-200">
+                                    <button type="submit" class="text-rose-600 hover:text-rose-600 text-xs px-2 py-1 rounded border border-rose-200 whitespace-nowrap">
                                         Delete
                                     </button>
                                 </form>
+                                </div>
                             </td>
                         </tr>
                         {% else %}
