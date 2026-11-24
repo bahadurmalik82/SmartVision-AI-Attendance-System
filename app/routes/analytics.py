@@ -141,9 +141,30 @@ def _analytics_context():
     rows = get_student_aggregates(course=course, section=section,
                                   date=parsed_date, student_id=parsed_student_id)
     courses = [c[0] for c in Schedule.query.filter_by(teacher_id=current_user.id).with_entities(Schedule.course_name).distinct().all()]
-    sections = [s[0] for s in Schedule.query.filter_by(teacher_id=current_user.id).with_entities(Schedule.section).distinct().all()]
+    # v8: section options come from the teacher's STUDENTS as well as
+    # from schedules, so the filter values always match the roster.
+    schedule_sections = {s[0] for s in Schedule.query.filter_by(teacher_id=current_user.id).with_entities(Schedule.section).distinct().all()}
     students = _my_students_query().order_by(Student.roll_number).all()
+    sections = sorted({s.section for s in students if s.section} | {s for s in schedule_sections if s})
     clusters = _clusters_for(rows)
+    # v8: never silently drop students. `rows` is the filtered slice;
+    # `hidden_students` is everyone on the full roster who is NOT in
+    # that slice, each with the reason they are hidden. Without a
+    # course/date filter a student is only hidden by the section /
+    # student filter; with a course/date filter they have no record
+    # in that slice.
+    shown_ids = {r['student'].id for r in rows}
+    hidden_students = []
+    for st in students:
+        if st.id in shown_ids:
+            continue
+        if section and st.section != section:
+            reason = 'hidden by the section filter'
+        elif parsed_student_id and st.id != parsed_student_id:
+            reason = 'hidden by the student filter'
+        else:
+            reason = 'no record for this course/date'
+        hidden_students.append({'student': st, 'reason': reason})
     # Recent individual records (for manual correction) — my students only.
     my_ids = [st.id for st in students]
     recent_records = []
@@ -155,6 +176,9 @@ def _analytics_context():
     return {
         'rows': rows,
         'students': students,
+        'total_students': len(students),
+        'hidden_students': hidden_students,
+        'filter_hides_records': bool(course or parsed_date),
         'courses': courses,
         'sections': sections,
         'clusters': clusters,

@@ -10,7 +10,7 @@
 
     <!-- Filter Bar Card -->
     <div class="bg-white p-5 rounded-2xl border border-slate-200 shadow-sm">
-        <h3 class="text-xs font-bold uppercase tracking-wider text-slate-500 mb-3">Multi-Parameter Search Filters</h3>
+        <h2 class="text-sm font-bold text-slate-900 mb-3">Multi-parameter search filters</h2>
         <form method="get" action="{{ url_for('analytics.index') }}">
             <div class="grid grid-cols-1 md:grid-cols-5 gap-3 text-xs">
                 <div>
@@ -44,7 +44,7 @@
                         {% endfor %}
                     </select>
                 </div>
-                <div class="flex items-end gap-2">
+                <div class="flex items-end gap-2 iba-filter-actions">
                     <button type="submit" class="btn btn-primary w-full">
                         <i class="fa-solid fa-filter mr-1"></i> Apply Filters
                     </button>
@@ -54,13 +54,26 @@
         </form>
     </div>
 
+    <!-- v8: never silently drop students. When the filter hides anyone
+         from the full roster, say so here — who, and why. -->
+    {% if hidden_students %}
+    <div class="bg-amber-50 border border-amber-200 rounded-2xl p-4 text-xs text-amber-600">
+        <strong>Showing {{ rows|length }} of {{ total_students }} students</strong> — {{ hidden_students|length }} hidden by the current filter:
+        {% for h in hidden_students %}{{ h.student.name }} ({{ h.student.roll_number }}){% if not loop.last %}, {% endif %}{% endfor %}.
+        {% if filter_hides_records %}They have no attendance record for this course/date yet.{% else %}They are outside the current section/student filter.{% endif %}
+        <a href="{{ url_for('analytics.index') }}" class="font-bold underline">Clear filters</a>
+    </div>
+    {% endif %}
+
     <!-- K-Means Clustering Section (v5: visual, not a long name list) -->
     <div id="clusters" class="bg-white rounded-2xl border border-slate-200 shadow-sm overflow-hidden">
         <div class="p-4 border-b border-slate-100 bg-slate-50">
-            <h3 class="font-bold text-xs uppercase tracking-wider text-slate-600">K-Means Student Clustering (k = 3)</h3>
+            <h3 class="font-bold text-sm text-slate-900">K-Means student clustering (k = 3)</h3>
+            {% if clusters.clusters %}
             <p class="text-xs text-slate-500 mt-1">{{ clusters.note }} Method: {{ clusters.method }}.</p>
+            {% endif %}
             {% if rows and (rows|sum(attribute='total_classes')) == 0 %}
-            <p class="text-xs mt-2 bg-amber-50 border border-amber-200 text-amber-800 rounded-lg px-3 py-2">
+            <p class="text-xs mt-2 bg-amber-50 border border-amber-200 text-amber-600 rounded-lg px-3 py-2">
                 <i class="fa-solid fa-triangle-exclamation mr-1"></i> <strong>No class has run yet.</strong>
                 Every student is at 0% only because there are no attendance records — nobody has actually been absent.
                 These groups will become real after the first class runs.
@@ -69,18 +82,18 @@
         </div>
 
         {% if clusters.clusters %}
-        {% set total_students = clusters.assignments|length %}
+        {% set shown_count = clusters.assignments|length %}
         <!-- Distribution bar: how the class splits across the 3 groups -->
         <div class="px-4 pt-4">
-            <p class="text-xs font-semibold text-slate-600 mb-2">How the class splits — {{ total_students }} student(s)</p>
+            <p class="text-xs font-semibold text-slate-600 mb-2">How the class splits — {{ shown_count }} of {{ total_students }} student(s)</p>
             <div class="flex h-4 rounded-full overflow-hidden border border-slate-200" role="img" aria-label="Cluster distribution">
                 {% for cid, c in clusters.clusters.items() %}
-                <div title="{{ c.label }}: {{ c.count }} student(s)" style="width: {{ (c.count / total_students * 100)|round(1) }}%; background: {% if cid == 0 %}#059669{% elif cid == 1 %}#d97706{% else %}#e11d48{% endif %};"></div>
+                <div title="{{ c.label }}: {{ c.count }} student(s)" style="width: {{ (c.count / shown_count * 100)|round(1) }}%; background: {% if cid == 0 %}#059669{% elif cid == 1 %}#d97706{% else %}#e11d48{% endif %};"></div>
                 {% endfor %}
             </div>
             <div class="flex flex-wrap gap-4 mt-2 text-xs text-slate-600">
                 {% for cid, c in clusters.clusters.items() %}
-                <span><span class="inline-block w-2.5 h-2.5 rounded-full align-middle" style="background: {% if cid == 0 %}#059669{% elif cid == 1 %}#d97706{% else %}#e11d48{% endif %};"></span> {{ c.label }} — {{ c.count }} ({{ (c.count / total_students * 100)|round(0) }}%)</span>
+                <span><span class="inline-block w-2.5 h-2.5 rounded-full align-middle" style="background: {% if cid == 0 %}#059669{% elif cid == 1 %}#d97706{% else %}#e11d48{% endif %};"></span> {{ c.label }} — {{ c.count }} ({{ (c.count / shown_count * 100)|round(0) }}%)</span>
                 {% endfor %}
             </div>
         </div>
@@ -142,7 +155,7 @@
     <!-- Search Results / Directory Table -->
     <div class="bg-white rounded-2xl border border-slate-200 shadow-sm overflow-hidden">
         <div class="p-4 border-b border-slate-100 flex justify-between items-center bg-slate-50">
-            <h3 class="font-bold text-xs uppercase tracking-wider text-slate-600">Student Attendance Records ({{ rows|length }} shown)</h3>
+            <h3 class="font-bold text-sm text-slate-900">Student attendance records ({{ rows|length }} of {{ total_students }} shown)</h3>
             <div class="flex gap-2 no-print">
                 <button type="button" onclick="window.print()" class="btn btn-secondary"><i class="fa-solid fa-print mr-1"></i> Print report</button>
                 <a href="{{ url_for('analytics.export_excel', course=selected_course, section=selected_section, date=selected_date, student_id=selected_student_id) }}" class="btn btn-primary">
@@ -166,7 +179,7 @@
                     {% for r in rows %}
                     <tr class="hover:bg-slate-50/80 transition">
                         <td class="p-3.5 font-bold text-iba-blue">{{ r.student.roll_number }}</td>
-                        <td class="p-3.5 font-semibold text-slate-800">{{ r.student.name }}</td>
+                        <td class="p-3.5 font-semibold text-slate-900">{{ r.student.name }}</td>
                         <td class="p-3.5 text-slate-600">{{ r.student.section }}</td>
                         <td class="p-3.5 text-slate-600">{{ r.total_classes }}</td>
                         <td class="p-3.5 font-bold text-emerald-600">{{ r.avg_percentage }}%</td>
@@ -196,7 +209,7 @@
     <!-- Manual Attendance Correction -->
     <div class="bg-white rounded-2xl border border-slate-200 shadow-sm overflow-hidden no-print">
         <div class="p-4 border-b border-slate-100 bg-slate-50">
-            <h3 class="font-bold text-xs uppercase tracking-wider text-slate-600">Correct a Record (Manual Override)</h3>
+            <h3 class="font-bold text-sm text-slate-900">Correct a record (manual override)</h3>
             <p class="text-xs text-slate-500 mt-1">Fix a wrongly marked student: choose the status, correct the minutes, and give a reason. The change is logged.</p>
         </div>
         <div class="overflow-x-auto">
@@ -214,7 +227,7 @@
                     {% for rec in recent_records %}
                     <tr class="hover:bg-slate-50/80 transition">
                         <td class="p-3.5">{{ rec.session.session_date if rec.session else '-' }}</td>
-                        <td class="p-3.5 font-semibold text-slate-800">{{ rec.student.name }} <span class="text-slate-500 font-normal">({{ rec.student.roll_number }})</span>{% if rec.manual_override %} <span class="text-iba-gold font-bold">· corrected</span>{% endif %}</td>
+                        <td class="p-3.5 font-semibold text-slate-900">{{ rec.student.name }} <span class="text-slate-500 font-normal">({{ rec.student.roll_number }})</span>{% if rec.manual_override %} <span class="text-iba-gold font-bold">· corrected</span>{% endif %}</td>
                         <td class="p-3.5 text-slate-600">{{ rec.session.course_name if rec.session else '-' }}</td>
                         <td class="p-3.5">{{ rec.status }} · {{ rec.minutes_present }} min · {{ rec.attendance_percentage }}%</td>
                         <td class="p-3.5">
