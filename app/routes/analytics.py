@@ -327,7 +327,7 @@ def email_defaulter(student_id):
     except Exception as exc:  # email must never break the dashboard
         current_app.logger.warning(f'Defaulter email failed: {exc}')
         sent, message = False, "Could not send email. Please try again later."
-    flash(message, "success" if sent else "info")
+    flash(message, "success" if sent else "warning")
     return redirect(url_for('analytics.defaulters'))
 
 
