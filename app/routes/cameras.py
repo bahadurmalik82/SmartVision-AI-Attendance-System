@@ -14,7 +14,17 @@ cameras_bp = Blueprint('cameras', __name__, url_prefix='/cameras')
 @login_required
 def index():
     cameras = CameraSource.query.filter_by(teacher_id=current_user.id).all()
-    return render_template('cameras.html', cameras=cameras)
+    # v9.2: the Primary Active camera always sits on top, then the
+    # rest by name — so the teacher never has to hunt for it.
+    cameras.sort(key=lambda c: (not c.is_active, (c.name or '').lower()))
+    # v9.2: which camera the teacher is currently viewing on the
+    # dashboard (chosen from the dropdown there) — shown as
+    # "Currently using" in the Role column. The primary stays
+    # Primary Active even while another camera is being viewed.
+    from flask import session as flask_session
+    view_camera_id = flask_session.get('dashboard_camera_id')
+    return render_template('cameras.html', cameras=cameras,
+                           view_camera_id=view_camera_id)
 
 
 @cameras_bp.route('/add', methods=['POST'])
@@ -116,6 +126,12 @@ def delete(camera_id):
     was_active = cam.is_active
     db.session.delete(cam)
     db.session.commit()
+
+    # v9.2: if the deleted camera was the one being viewed on the
+    # dashboard, forget it — the dashboard falls back to the primary.
+    from flask import session as flask_session
+    if flask_session.get('dashboard_camera_id') == camera_id:
+        flask_session.pop('dashboard_camera_id', None)
 
     # If deleted camera was active, set another camera as active if available
     if was_active:

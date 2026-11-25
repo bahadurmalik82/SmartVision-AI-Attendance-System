@@ -44,7 +44,7 @@
                     <form action="{{ url_for('dashboard.start_class_manual') }}" method="POST" class="inline-flex items-center gap-2">
             <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
                         {% if classes %}
-                        <select name="class_group_id" class="border border-slate-300 rounded-lg px-2 py-2 text-xs bg-white" title="Which class is this for? Only that class's students will be marked.">
+                        <select name="class_group_id" class="border border-slate-300 px-2 py-2 text-xs bg-white" title="Which class is this for? Only that class's students will be marked.">
                             <option value="">— Which class? —</option>
                             {% for g in classes %}
                             <option value="{{ g.id }}">{{ g.display_name() }}</option>
@@ -68,7 +68,7 @@
 
             <!-- Video Player Window -->
             <div class="aspect-video bg-slate-950 rounded-xl relative flex items-center justify-center border border-slate-800 overflow-hidden text-slate-400" id="videoContainer">
-                {% set active_cam = cameras|selectattr('is_active')|first %}
+                {% set active_cam = view_camera %}
                 {% if active_cam and active_cam.camera_type == 'ip_webcam' and active_cam.stream_url %}
                     <!-- Embedded Mobile IP Webcam Stream -->
                     <img id="liveVideoFeed" src="{{ active_cam.stream_url }}" alt="Live IP Webcam Feed" class="w-full h-full object-contain" onerror="handleStreamError(this)">
@@ -109,15 +109,18 @@
                 <div class="flex items-center space-x-2">
                     <i class="fa-solid fa-camera text-slate-500"></i>
                     <span class="font-semibold text-slate-700">Camera Source:</span>
-                    <select onchange="window.location.href='{{ url_for('cameras.index') }}'" class="border border-slate-300 rounded px-2.5 py-1 text-xs bg-white font-medium">
-                        {% for c in cameras %}
-                        <option value="{{ c.id }}" {% if c.is_active %}selected{% endif %}>
-                            {{ c.name }} ({{ 'Mobile IP' if c.camera_type == 'ip_webcam' else 'USB/Browser' }})
-                        </option>
-                        {% else %}
-                        <option>No camera added yet</option>
-                        {% endfor %}
-                    </select>
+                    <form action="{{ url_for('dashboard.select_camera') }}" method="POST" class="inline">
+                        <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
+                        <select name="camera_id" onchange="this.form.submit()" class="border border-slate-300 px-2.5 py-1 text-xs bg-white font-medium" title="Switch the camera shown on this dashboard">
+                            {% for c in cameras %}
+                            <option value="{{ c.id }}" {% if view_camera and c.id == view_camera.id %}selected{% endif %}>
+                                {{ c.name }} ({{ 'Mobile IP' if c.camera_type == 'ip_webcam' else 'USB/Browser' }})
+                            </option>
+                            {% else %}
+                            <option value="">No camera added yet</option>
+                            {% endfor %}
+                        </select>
+                    </form>
                 </div>
                 <p class="text-xs text-slate-500">
                     {% if active_session %}

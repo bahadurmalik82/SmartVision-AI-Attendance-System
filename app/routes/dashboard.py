@@ -1,6 +1,7 @@
 import base64
 import io
-from flask import Blueprint, render_template, request, redirect, url_for, flash, jsonify, current_app
+from flask import (Blueprint, render_template, request, redirect, url_for,
+                   flash, jsonify, current_app, session as flask_session)
 from flask_login import login_required, current_user
 from PIL import Image
 from sqlalchemy import or_
@@ -36,6 +37,16 @@ def index():
     cameras = CameraSource.query.filter_by(teacher_id=current_user.id).all()
     classes = ClassGroup.query.filter_by(teacher_id=current_user.id).order_by(ClassGroup.name).all()
     active_camera = next((c for c in cameras if c.is_active), None)
+    # v9.2: what the teacher is VIEWING on the dashboard right now —
+    # picked from the dropdown below the camera screen. It is only a
+    # viewing choice: it never changes the saved Primary Active
+    # camera. A stale or foreign id falls back to the primary.
+    view_camera = active_camera
+    view_id = flask_session.get('dashboard_camera_id')
+    if view_id is not None:
+        chosen = next((c for c in cameras if c.id == view_id), None)
+        if chosen is not None:
+            view_camera = chosen
 
     return render_template(
         'dashboard.html',
@@ -45,7 +56,31 @@ def index():
         cameras=cameras,
         classes=classes,
         active_camera=active_camera,
+        view_camera=view_camera,
     )
+
+
+@dashboard_bp.route('/dashboard/camera/select', methods=['POST'])
+@login_required
+def select_camera():
+    """Switch which camera the dashboard shows right now.
+
+    Only a viewing choice — the saved Primary Active camera is
+    untouched. The camera must belong to this teacher (404
+    otherwise), and the choice is kept in the session until the
+    teacher picks another camera or deletes this one.
+    """
+    raw_id = (request.form.get('camera_id') or '').strip()
+    try:
+        camera_id = int(raw_id)
+    except ValueError:
+        flash('Please choose a camera first.', 'warning')
+        return redirect(url_for('dashboard.index'))
+    cam = CameraSource.query.filter_by(
+        id=camera_id, teacher_id=current_user.id).first_or_404()
+    flask_session['dashboard_camera_id'] = cam.id
+    flash(f"Now viewing: {cam.name}.", "success")
+    return redirect(url_for('dashboard.index'))
 
 
 @dashboard_bp.route('/dashboard/session-status')
