@@ -16,7 +16,11 @@ from app.ml_engine.clustering import cluster_students
 from app.ml_engine.defaulter_predictor import predict_defaulters
 from app.models import AttendanceRecord, AttendanceSession, Schedule, Student
 from app.services.audit import log_action
-from app.services.email_service import send_defaulter_alert
+from app.services.email_service import (NOT_CONFIGURED_MSG,
+                                        build_transcript_data,
+                                        is_configured,
+                                        send_attendance_transcript,
+                                        send_defaulter_alert)
 from app.services.settings import get_late_threshold, get_threshold
 
 analytics_bp = Blueprint('analytics', __name__, url_prefix='/analytics')
@@ -205,7 +209,11 @@ def clusters():
 
 
 def _build_defaulters():
-    """Defaulter list enriched with the ML predictor + cluster labels."""
+    """Defaulter + non-defaulter lists, enriched with the ML predictor
+    + cluster labels. Returns (defaulter_list, non_defaulter_list,
+    prediction). Defaulters are below the threshold; non-defaulters
+    are at or above it and are shown in their own section of the
+    Defaulters page so transcripts can go to them too."""
     rows = get_student_aggregates()
     prediction = predict_defaulters([{
         'student_id': r['student'].id,
@@ -223,34 +231,45 @@ def _build_defaulters():
     threshold = get_threshold()
     warn_from = max(0.0, threshold - 5.0)
     defaulter_list = []
+    non_defaulter_list = []
     for r in rows:
-        if r['avg_percentage'] >= threshold:
-            continue
         pred = pred_by_id.get(r['student'].id, {})
         cluster = cluster_by_id.get(r['student'].id, {})
-        defaulter_list.append({
+        entry = {
             'student': r['student'],
             'avg_percentage': r['avg_percentage'],
             'total_classes': r['total_classes'],
-            'status': ('Barred from Exam' if r['avg_percentage'] < warn_from
-                       else f'Warning ({warn_from:.0f}-{threshold:.0f}%)'),
             'risk_probability': pred.get('risk_probability'),
             'risk_label': pred.get('risk_label', ''),
-            'cluster_label': cluster.get('cluster_label', 'At-Risk Defaulters'),
+            'cluster_label': cluster.get('cluster_label', ''),
             'prediction_method': prediction['method'],
-        })
+        }
+        if r['avg_percentage'] >= threshold:
+            entry['status'] = 'Eligible'
+            if not entry['cluster_label']:
+                entry['cluster_label'] = 'On Track'
+            non_defaulter_list.append(entry)
+            continue
+        entry['status'] = ('Barred from Exam' if r['avg_percentage'] < warn_from
+                           else f'Warning ({warn_from:.0f}-{threshold:.0f}%)')
+        if not entry['cluster_label']:
+            entry['cluster_label'] = 'At-Risk Defaulters'
+        defaulter_list.append(entry)
     defaulter_list.sort(key=lambda d: d['avg_percentage'])
-    return defaulter_list, prediction
+    non_defaulter_list.sort(key=lambda d: -d['avg_percentage'])
+    return defaulter_list, non_defaulter_list, prediction
 
 
 @analytics_bp.route('/defaulters')
 @login_required
 def defaulters():
-    defaulter_list, prediction = _build_defaulters()
+    defaulter_list, non_defaulter_list, prediction = _build_defaulters()
     return render_template('defaulters.html', defaulters=defaulter_list,
+                           non_defaulters=non_defaulter_list,
                            prediction_method=prediction['method'],
                            prediction_note=prediction['note'],
-                           threshold=get_threshold())
+                           threshold=get_threshold(),
+                           email_configured=is_configured())
 
 
 def _excel_response(filename, headers, data_rows):
@@ -300,7 +319,7 @@ def export_excel():
 @login_required
 def export_defaulters_excel():
     """Download the <75% defaulter list as .xlsx."""
-    defaulter_list, _ = _build_defaulters()
+    defaulter_list, _, _ = _build_defaulters()
     data = [[d['student'].roll_number, d['student'].name, d['student'].department,
              d['total_classes'], d['avg_percentage'], d['status'],
              d.get('cluster_label', ''), d.get('risk_label', '')]
@@ -328,6 +347,95 @@ def email_defaulter(student_id):
         current_app.logger.warning(f'Defaulter email failed: {exc}')
         sent, message = False, "Could not send email. Please try again later."
     flash(message, "success" if sent else "warning")
+    return redirect(url_for('analytics.defaulters'))
+
+
+@analytics_bp.route('/defaulters/transcript/<int:student_id>', methods=['POST'])
+@login_required
+def email_transcript(student_id):
+    """Send one student's full attendance transcript by email.
+
+    Same pattern as the defaulter warning route: the transcript goes
+    to one student only, and email problems never 500 the page —
+    they come back as a warning toast instead.
+    """
+    student = _my_students_query().filter_by(id=student_id).first_or_404()
+    threshold = get_threshold()
+    try:
+        transcript = build_transcript_data(student, threshold=threshold)
+        sent, message = send_attendance_transcript(
+            student.email, student.name, current_user.name,
+            transcript, threshold=threshold)
+    except Exception as exc:  # email must never break the dashboard
+        current_app.logger.warning(f'Transcript email failed: {exc}')
+        sent, message = False, "Could not send email. Please try again later."
+    if sent:
+        log_action('transcript_email',
+                   f'Transcript sent to {student.roll_number} — '
+                   f'{student.name}.')
+    flash(message, "success" if sent else "warning")
+    return redirect(url_for('analytics.defaulters'))
+
+
+@analytics_bp.route('/defaulters/transcript-selected', methods=['POST'])
+@login_required
+def email_transcript_selected():
+    """Send transcripts ONLY to the students the teacher selected.
+
+    There is deliberately no send-to-all option anywhere: this route
+    only ever sends to the student ids the form carries, which are
+    the ones the teacher ticked. Students with no email on file are
+    skipped and named in the result toast; a failed send never
+    breaks the page.
+    """
+    if not is_configured():
+        flash(NOT_CONFIGURED_MSG, "warning")
+        return redirect(url_for('analytics.defaulters'))
+    ids = request.form.getlist('student_ids')
+    if not ids:
+        flash('No students selected — tick the boxes first, then '
+              'Send Email.', 'warning')
+        return redirect(url_for('analytics.defaulters'))
+    threshold = get_threshold()
+    sent_names, skipped_names, failed_names = [], [], []
+    for raw_id in ids:
+        try:
+            student_id = int(raw_id)
+        except (TypeError, ValueError):
+            continue
+        student = _my_students_query().filter_by(id=student_id).first()
+        if student is None:
+            continue
+        if not student.email:
+            skipped_names.append(f"{student.name} ({student.roll_number})")
+            continue
+        try:
+            transcript = build_transcript_data(student,
+                                               threshold=threshold)
+            sent, message = send_attendance_transcript(
+                student.email, student.name, current_user.name,
+                transcript, threshold=threshold)
+        except Exception as exc:
+            current_app.logger.warning(f'Transcript email failed: {exc}')
+            sent, message = False, "Could not send email. Please try again later."
+        if sent:
+            sent_names.append(f"{student.name} ({student.roll_number})")
+        else:
+            failed_names.append(f"{student.name} ({student.roll_number})")
+    parts = []
+    if sent_names:
+        parts.append(f"Transcript sent to {len(sent_names)} student(s).")
+    if skipped_names:
+        parts.append("Skipped (no email on file): "
+                     f"{', '.join(skipped_names)}.")
+    if failed_names:
+        parts.append(f"Could not send to: {', '.join(failed_names)}.")
+    if sent_names:
+        log_action('transcript_email',
+                   f"Transcripts sent to {len(sent_names)} student(s): "
+                   f"{', '.join(sent_names)}.")
+    flash(' '.join(parts) if parts else 'No transcripts were sent.',
+          'success' if sent_names and not failed_names else 'warning')
     return redirect(url_for('analytics.defaulters'))
 
 

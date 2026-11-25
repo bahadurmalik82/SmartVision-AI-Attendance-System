@@ -16,6 +16,7 @@ failures (wrong App Password, unreachable server) are reported in
 plain words with the raw error kept after a dash for diagnosis.
 """
 
+import html
 import os
 import smtplib
 import socket
@@ -189,4 +190,162 @@ def send_verification_code(to_email, code):
     sent, error = _send(msg)
     if sent:
         return True, f"Verification code sent to {to_email}."
+    return False, error
+
+
+def build_transcript_data(student, threshold=75.0):
+    """Build a student's complete attendance transcript, all courses.
+
+    Returns a dict with one row per course (course name, the dates
+    classes ran, total classes held, presents, absents, percentage),
+    overall totals, and the courses the student is dropped from
+    (per-course % below ``threshold``). A record counts as present
+    unless its status is 'Absent' — Present, Late and Left Early all
+    mean the student was there. Percentages are presents / classes
+    held, rounded to 1 decimal. Never raises on missing data: a
+    student with no records gets an empty course list and zero
+    totals.
+    """
+    from app.models import AttendanceRecord, AttendanceSession
+
+    records = (AttendanceRecord.query
+               .filter_by(student_id=student.id)
+               .join(AttendanceSession,
+                     AttendanceRecord.session_id == AttendanceSession.id)
+               .order_by(AttendanceSession.session_date).all())
+    by_course = {}
+    for rec in records:
+        course = (rec.session.course_name if rec.session
+                  else 'Unknown course')
+        entry = by_course.setdefault(course, {'dates': [], 'presents': 0,
+                                              'absents': 0})
+        if rec.session and rec.session.session_date:
+            entry['dates'].append(rec.session.session_date)
+        if rec.status == 'Absent':
+            entry['absents'] += 1
+        else:
+            entry['presents'] += 1
+    courses = []
+    for name in sorted(by_course):
+        entry = by_course[name]
+        total = entry['presents'] + entry['absents']
+        pct = round(entry['presents'] / total * 100, 1) if total else 0.0
+        courses.append({'course_name': name,
+                        'dates': sorted(set(entry['dates'])),
+                        'total': total, 'presents': entry['presents'],
+                        'absents': entry['absents'], 'percentage': pct})
+    total_presents = sum(c['presents'] for c in courses)
+    total_absents = sum(c['absents'] for c in courses)
+    total_classes = total_presents + total_absents
+    overall = (round(total_presents / total_classes * 100, 1)
+               if total_classes else 0.0)
+    dropped = [c['course_name'] for c in courses
+               if c['percentage'] < threshold]
+    return {'courses': courses, 'total_classes': total_classes,
+            'total_presents': total_presents,
+            'total_absents': total_absents,
+            'overall_percentage': overall,
+            'dropped_courses': dropped}
+
+
+def send_attendance_transcript(to_email, student_name, teacher_name,
+                               transcript, threshold=75.0):
+    """Send a student's complete attendance transcript by email (v9.1).
+
+    ``transcript`` is the dict from build_transcript_data(). The
+    email has a plain-text body and a simple HTML table with the
+    same content: per course the classes held, presents, absents,
+    percentage and class dates; overall totals; and the courses the
+    student is dropped from (below ``threshold``%). Returns
+    (sent: bool, message: str). Never raises.
+    """
+    if not to_email:
+        return False, "No email address on file for this student."
+    if not is_configured():
+        return False, NOT_CONFIGURED_MSG
+
+    sender = os.environ.get("SMTP_FROM") or os.environ["SMTP_USER"]
+    msg = EmailMessage()
+    msg["Subject"] = f"Attendance Transcript — {student_name} (Attenova)"
+    msg["From"] = sender
+    msg["To"] = to_email
+
+    def fmt_dates(dates):
+        return ', '.join(d.strftime('%d %b %Y') for d in dates) or '—'
+
+    lines = [f"Dear {student_name},", "",
+             "Here is your complete attendance transcript from Attenova, "
+             f"sent by {teacher_name}.", ""]
+    if transcript['courses']:
+        for c in transcript['courses']:
+            lines.append(
+                f"{c['course_name']}: {c['total']} classes held, "
+                f"{c['presents']} present, {c['absents']} absent — "
+                f"{c['percentage']}%")
+            lines.append(f"  Class dates: {fmt_dates(c['dates'])}")
+        lines.append("")
+    else:
+        lines.append("No attendance records yet — no class has run for "
+                     "you.")
+        lines.append("")
+    lines.append(
+        f"Overall: {transcript['total_classes']} classes, "
+        f"{transcript['total_presents']} present, "
+        f"{transcript['total_absents']} absent — "
+        f"{transcript['overall_percentage']}%")
+    lines.append("")
+    if transcript['dropped_courses']:
+        lines.append(
+            f"Courses you are dropped from (below {threshold}% "
+            "attendance):")
+        for name in transcript['dropped_courses']:
+            lines.append(f"  - {name}")
+    else:
+        lines.append(
+            f"You are not dropped from any course (all at or above "
+            f"{threshold}%).")
+    lines.append("")
+    lines.append("Please attend all remaining classes and contact your "
+                 "course teacher if you have a genuine reason for absence.")
+    lines.append("")
+    lines.append("— Attenova")
+    msg.set_content("\n".join(lines))
+
+    course_rows = "".join(
+        "<tr><td>{}</td><td>{}</td><td>{}</td><td>{}</td><td>{}%</td>"
+        "<td>{}</td></tr>".format(
+            html.escape(c['course_name']), c['total'], c['presents'],
+            c['absents'], c['percentage'], html.escape(fmt_dates(c['dates'])))
+        for c in transcript['courses'])
+    if transcript['dropped_courses']:
+        dropped_html = ("<p><strong>Courses you are dropped from (below "
+                        f"{threshold}% attendance):</strong></p><ul>" +
+                        "".join(f"<li>{html.escape(n)}</li>"
+                                for n in transcript['dropped_courses']) +
+                        "</ul>")
+    else:
+        dropped_html = (f"<p>You are not dropped from any course (all at "
+                        f"or above {threshold}%).</p>")
+    html_body = (
+        f"<p>Dear {html.escape(student_name)},</p>"
+        "<p>Here is your complete attendance transcript from Attenova, "
+        f"sent by {html.escape(teacher_name)}.</p>"
+        "<table border=\"1\" cellpadding=\"6\" cellspacing=\"0\" "
+        "style=\"border-collapse: collapse;\">"
+        "<tr><th>Course</th><th>Classes held</th><th>Present</th>"
+        "<th>Absent</th><th>Attendance</th><th>Class dates</th></tr>"
+        f"{course_rows}</table>"
+        f"<p><strong>Overall:</strong> {transcript['total_classes']} "
+        f"classes, {transcript['total_presents']} present, "
+        f"{transcript['total_absents']} absent — "
+        f"{transcript['overall_percentage']}%</p>"
+        f"{dropped_html}"
+        "<p>Please attend all remaining classes and contact your course "
+        "teacher if you have a genuine reason for absence.</p>"
+        "<p>— Attenova</p>")
+    msg.add_alternative(html_body, subtype='html')
+
+    sent, error = _send(msg)
+    if sent:
+        return True, f"Transcript sent to {to_email}."
     return False, error
