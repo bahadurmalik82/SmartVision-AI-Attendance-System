@@ -34,7 +34,7 @@ from datetime import datetime
 from flask import current_app
 
 from app import db
-from app.models import Student, StudentAlertState
+from app.models import Student, StudentAlertState, Teacher
 from app.services.audit import log_action
 from app.services.email_service import send_defaulter_alert
 from app.services.settings import get_threshold
@@ -69,6 +69,11 @@ def check_and_send_drop_alerts(teacher_id, student_ids=None, threshold=None):
     try:
         threshold = (float(threshold) if threshold is not None
                      else get_threshold())
+        # v9.3: the warning is signed with the teacher's (current)
+        # name, read live from the DB — so a name changed on the
+        # Settings page shows in the next alert email.
+        teacher = Teacher.query.get(teacher_id) if teacher_id else None
+        teacher_name = teacher.name if teacher else None
     except (TypeError, ValueError):
         threshold = 75.0
 
@@ -114,7 +119,8 @@ def check_and_send_drop_alerts(teacher_id, student_ids=None, threshold=None):
                 continue
 
             sent, message = send_defaulter_alert(
-                student.email, student.name, avg_pct, threshold=threshold)
+                student.email, student.name, avg_pct, threshold=threshold,
+                teacher_name=teacher_name)
             if sent:
                 state.last_kind = kind
                 state.last_sent_at = datetime.now()

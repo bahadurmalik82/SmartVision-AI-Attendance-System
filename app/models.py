@@ -22,6 +22,10 @@ class Teacher(UserMixin, db.Model):
     email = db.Column(db.String(150), unique=True, nullable=False, index=True)
     password_hash = db.Column(db.String(256), nullable=False)
     department = db.Column(db.String(100), default='Computer Science')
+    # v9.3: the teacher's qualification (e.g. "M.Phil Computer Science"),
+    # edited on the Settings page (Personal Details). Added by the
+    # startup migration in app/__init__.py, so old databases get it.
+    qualification = db.Column(db.String(150), nullable=True)
     created_at = db.Column(db.DateTime, default=datetime.utcnow)
     # UNUSED since v4 (no admin/HOD). Kept so old databases keep working.
     is_admin = db.Column(db.Boolean, default=False, nullable=False)
@@ -389,7 +393,8 @@ class Settings(db.Model):
 
 
 class AuditLog(db.Model):
-    """Audit trail: who did what, when. Shown on the Settings page."""
+    """Audit trail: who did what, when. Written by log_action() everywhere;
+    the Settings page stopped showing it in v9.3 (card removed)."""
     __tablename__ = 'audit_log'
 
     id = db.Column(db.Integer, primary_key=True)
@@ -402,3 +407,25 @@ class AuditLog(db.Model):
 
     def __repr__(self):
         return f"<AuditLog {self.action} by {self.teacher_id} at {self.created_at}>"
+
+
+class Feedback(db.Model):
+    """Website feedback from the teacher (v9.3, Settings page).
+
+    One row per message. The list is shown on the Settings page
+    (newest first) so the owner can read what was sent. The table
+    is created by db.create_all() — no migration needed.
+    """
+    __tablename__ = 'feedback'
+
+    id = db.Column(db.Integer, primary_key=True)
+    teacher_id = db.Column(db.Integer, db.ForeignKey('teachers.id'), nullable=True)
+    name = db.Column(db.String(120), nullable=False)
+    email = db.Column(db.String(150), nullable=False)
+    message = db.Column(db.Text, nullable=False)
+    created_at = db.Column(db.DateTime, default=datetime.utcnow)
+
+    teacher = db.relationship('Teacher', backref='feedback_entries', lazy=True)
+
+    def __repr__(self):
+        return f"<Feedback by {self.name} at {self.created_at}>"

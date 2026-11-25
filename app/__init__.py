@@ -67,6 +67,14 @@ _V5_COLUMNS = {
 }
 
 
+# Columns added in v9.3 (Personal Details on the Settings page).
+#   teachers.qualification  VARCHAR(150) — e.g. "M.Phil Computer Science".
+# The Feedback table is a new model, created by db.create_all().
+_V9_COLUMNS = {
+    'teachers': [('qualification', 'VARCHAR(150)')],
+}
+
+
 def _migrate_and_backfill(app):
     """Add v3 columns to an older database and fill sensible defaults.
 
@@ -84,7 +92,7 @@ def _migrate_and_backfill(app):
     # "no such column: students.cms_id". Combine the column lists
     # per table instead, keeping v3 -> v4 -> v5 order.
     _all_columns = {}
-    for _colset in (_V3_COLUMNS, _V4_COLUMNS, _V5_COLUMNS):
+    for _colset in (_V3_COLUMNS, _V4_COLUMNS, _V5_COLUMNS, _V9_COLUMNS):
         for _table, _cols in _colset.items():
             _all_columns.setdefault(_table, []).extend(_cols)
     engine = db.engine

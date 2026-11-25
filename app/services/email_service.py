@@ -102,10 +102,16 @@ def _send(msg):
 
 
 def send_defaulter_alert(to_email, student_name, avg_percentage,
-                         course_name="your course", threshold=75.0):
+                         course_name="your course", threshold=75.0,
+                         teacher_name=None):
     """Send a <75% attendance warning email to one student.
 
     Returns (sent: bool, message: str). Never raises.
+
+    v9.3: when teacher_name is given, the email is signed with it
+    ("— <name> (via Attenova)") so the name the teacher set on the
+    Settings page shows in the student's inbox. Without it the
+    sign-off stays "— Attenova", exactly as before.
     """
     if not to_email:
         return False, "No email address on file for this student."
@@ -119,6 +125,8 @@ def send_defaulter_alert(to_email, student_name, avg_percentage,
     msg["Subject"] = f"Attendance Warning — {student_name} ({avg_percentage}% < {threshold}%)"
     msg["From"] = sender
     msg["To"] = to_email
+    signature = (f"— {teacher_name} (via Attenova)" if teacher_name
+                 else "— Attenova")
     msg.set_content(
         f"Dear {student_name},\n\n"
         f"This is an automated warning from Attenova.\n\n"
@@ -128,7 +136,7 @@ def send_defaulter_alert(to_email, student_name, avg_percentage,
         f"Status: {status}\n\n"
         "Please attend all remaining classes and contact your course teacher "
         "if you have a genuine reason for absence.\n\n"
-        "— Attenova\n"
+        f"{signature}\n"
     )
 
     sent, error = _send(msg)

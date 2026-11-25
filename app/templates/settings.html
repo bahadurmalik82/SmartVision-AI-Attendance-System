@@ -2,12 +2,59 @@
 {% block title %}Settings{% endblock %}
 
 {% block content %}
-<div class="space-y-6 max-w-2xl">
+{# v9.3: full width, like every other page — the old narrow
+   `max-w-2xl` container is gone. Card order, top to bottom:
+   Personal Details, Your account, Attendance policy, Appearance,
+   Keyboard shortcuts, Data management, Email alerts, FAQ,
+   Helpline, Feedback, About Attenova. "My recent activity" is
+   removed completely (the audit log itself still exists — only
+   the card went). #}
+<div class="space-y-6">
     <div>
         <h1 class="text-2xl font-bold text-slate-900">Settings</h1>
-        <p class="text-xs text-slate-500 mt-1">Attendance policy, backup and your account.</p>
+        <p class="text-xs text-slate-500 mt-1">Your details, attendance policy, email, backup and help.</p>
     </div>
 
+    <!-- (1) Personal Details — NEW in v9.3. The name saved here is
+         read live from the database everywhere it appears: the
+         topbar, the dashboard welcome, the Your account card below,
+         and the emails sent to students. -->
+    <div class="bg-white p-6 rounded-2xl border border-slate-200 shadow-sm space-y-4">
+        <h2 class="font-bold text-slate-900">Personal Details</h2>
+        <p class="text-xs text-slate-500">Your name, qualification and department — shown on your account and signed in the emails Attenova sends to students.</p>
+        <form action="{{ url_for('settings.personal_details') }}" method="POST" class="space-y-3 text-xs">
+            <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
+            <div class="grid grid-cols-1 md:grid-cols-3 gap-3">
+                <div>
+                    <label class="block font-semibold text-slate-600 mb-1">Name <span class="text-rose-600">*</span></label>
+                    <input type="text" name="name" value="{{ current_user.name }}" required class="w-full px-3 py-2 border rounded-lg focus:ring-2 focus:ring-iba-blue">
+                </div>
+                <div>
+                    <label class="block font-semibold text-slate-600 mb-1">Qualification</label>
+                    <input type="text" name="qualification" value="{{ current_user.qualification or '' }}" placeholder="e.g. M.Phil Computer Science" class="w-full px-3 py-2 border rounded-lg focus:ring-2 focus:ring-iba-blue">
+                </div>
+                <div>
+                    <label class="block font-semibold text-slate-600 mb-1">Department</label>
+                    <input type="text" name="department" value="{{ current_user.department or '' }}" placeholder="e.g. Computer Science" class="w-full px-3 py-2 border rounded-lg focus:ring-2 focus:ring-iba-blue">
+                </div>
+            </div>
+            <div>
+                <label class="block font-semibold text-slate-600 mb-1">Email (login)</label>
+                <input type="email" value="{{ current_user.email }}" readonly class="w-full px-3 py-2 border rounded-lg bg-slate-50 text-slate-500 cursor-not-allowed">
+                <p class="text-xs text-slate-500 mt-1">Your login email cannot be changed here — changing it would need re-verification. Ask the developer (see Helpline below) if it must change.</p>
+            </div>
+            <button type="submit" class="btn btn-primary">Save personal details</button>
+        </form>
+    </div>
+
+    <!-- (2) Your account -->
+    <div class="bg-white p-6 rounded-2xl border border-slate-200 shadow-sm space-y-3">
+        <h2 class="font-bold text-slate-900">Your account</h2>
+        <p class="text-xs text-slate-500">Signed in as <strong class="text-slate-700">{{ current_user.name }}</strong> ({{ current_user.email }}){% if current_user.qualification %} · {{ current_user.qualification }}{% endif %}{% if current_user.department %} · {{ current_user.department }}{% endif %}.</p>
+        <a href="{{ url_for('auth.change_password') }}" class="btn btn-secondary">Change password</a>
+    </div>
+
+    <!-- (3) Attendance policy -->
     <div class="bg-white p-6 rounded-2xl border border-slate-200 shadow-sm space-y-4">
         <h2 class="font-bold text-slate-900">Attendance policy</h2>
         <form action="{{ url_for('settings.index') }}" method="POST" class="space-y-3 text-xs">
@@ -26,27 +73,7 @@
         </form>
     </div>
 
-    <!-- v8.2: Email alerts — status + send yourself a test email. -->
-    <div class="bg-white p-6 rounded-2xl border border-slate-200 shadow-sm space-y-3">
-        <h2 class="font-bold text-slate-900">Email alerts</h2>
-        {% if email_status.configured %}
-        <p class="text-xs text-emerald-600 font-semibold">Email is set up — warnings go out from {{ email_status.user }} via {{ email_status.host }}:{{ email_status.port }}.</p>
-        {% else %}
-        <p class="text-xs text-amber-600 font-semibold">Email is not set up yet — the Send Alert Email button will tell you the same.</p>
-        {% endif %}
-        <form action="{{ url_for('settings.test_email') }}" method="POST">
-            <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
-            <button type="submit" class="btn btn-primary btn-sm">Send me a test email</button>
-        </form>
-        <p class="text-xs text-slate-500">Free, with Gmail: turn on 2-Step Verification, make an App Password for Mail (16 letters), add SMTP_HOST=smtp.gmail.com, SMTP_PORT=587, SMTP_USER=your Gmail, SMTP_PASSWORD=the App Password to .env, restart the app, then send yourself a test email here.</p>
-    </div>
-
-    <div class="bg-white p-6 rounded-2xl border border-slate-200 shadow-sm space-y-3">
-        <h2 class="font-bold text-slate-900">Your account</h2>
-        <a href="{{ url_for('auth.change_password') }}" class="btn btn-secondary">Change password</a>
-    </div>
-
-    <!-- v7: Appearance — saved in this browser only (localStorage),
+    <!-- (4) Appearance — saved in this browser only (localStorage),
          applied on every page. No server setting involved. -->
     <div class="bg-white p-6 rounded-2xl border border-slate-200 shadow-sm space-y-4">
         <h2 class="font-bold text-slate-900">Appearance</h2>
@@ -81,7 +108,7 @@
         </div>
     </div>
 
-    <!-- v7: Keyboard shortcuts — real, implemented in base.html. -->
+    <!-- (5) Keyboard shortcuts — real, implemented in base.html. -->
     <div class="bg-white p-6 rounded-2xl border border-slate-200 shadow-sm space-y-3">
         <h2 class="font-bold text-slate-900">Keyboard shortcuts</h2>
         <p class="text-xs text-slate-500">Hold <strong>Alt</strong> and press the number. They work on every page, and do nothing while you are typing in a field.</p>
@@ -94,13 +121,7 @@
         </div>
     </div>
 
-    <!-- v7: About Attenova — honest facts only. -->
-    <div class="bg-white p-6 rounded-2xl border border-slate-200 shadow-sm space-y-3">
-        <h2 class="font-bold text-slate-900">About Attenova</h2>
-        <p class="text-xs text-slate-500">Attenova v9.2 — AI-powered smart attendance and duration tracking. Built with Flask + SQLite. 4 ML models benchmarked (SVM, KNN, Random Forest, Logistic Regression) on 128-D face embeddings. Presence is tracked in 10-minute blocks, and 75% attendance is needed for final-exam eligibility.</p>
-    </div>
-
-    <!-- v8: Data management — the one place for backup and export. -->
+    <!-- (6) Data management — the one place for backup and export. -->
     <div class="bg-white p-6 rounded-2xl border border-slate-200 shadow-sm space-y-3">
         <h2 class="font-bold text-slate-900">Data management</h2>
         <p class="text-xs text-slate-500">Downloads a zip of the attendance database. Student photos are not included — copy the data/student_photos/ folder separately if you need them. Restore: stop the app, replace data/attendance.db with the file from the zip, then start the app again.</p>
@@ -111,31 +132,149 @@
         </div>
     </div>
 
-    <!-- v9.1: this card sits INSIDE the space-y-6 container now, so it
-         gets the same gap from the card above as every other card. -->
+    <!-- (7) Email alerts — status + send yourself a test email. -->
     <div class="bg-white p-6 rounded-2xl border border-slate-200 shadow-sm space-y-3">
-        <h2 class="font-bold text-slate-900">My recent activity</h2>
-        <p class="text-xs text-slate-500">Your own actions on this account — logins, students added, corrections, backups.</p>
-        {% if audit_entries %}
-        <div class="overflow-x-auto">
-            <table class="w-full text-left text-xs">
-                <thead class="bg-slate-50 text-slate-600 uppercase font-semibold">
-                    <tr><th class="p-2.5">When</th><th class="p-2.5">Action</th><th class="p-2.5">Details</th></tr>
-                </thead>
-                <tbody class="divide-y divide-slate-100">
-                    {% for a in audit_entries %}
-                    <tr>
-                        <td class="p-2.5 text-slate-500">{{ a.created_at.strftime('%d %b %Y, %I:%M %p') if a.created_at else '-' }}</td>
-                        <td class="p-2.5 font-semibold">{{ a.action }}</td>
-                        <td class="p-2.5 text-slate-600">{{ a.detail or '' }}</td>
-                    </tr>
-                    {% endfor %}
-                </tbody>
-            </table>
-        </div>
+        <h2 class="font-bold text-slate-900">Email alerts</h2>
+        {% if email_status.configured %}
+        <p class="text-xs text-emerald-600 font-semibold">Email is set up — warnings go out from {{ email_status.user }} via {{ email_status.host }}:{{ email_status.port }}.</p>
         {% else %}
-        <p class="text-xs text-slate-400">No activity recorded yet.</p>
+        <p class="text-xs text-amber-600 font-semibold">Email is not set up yet — the Send Alert Email button will tell you the same.</p>
         {% endif %}
+        <form action="{{ url_for('settings.test_email') }}" method="POST">
+            <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
+            <button type="submit" class="btn btn-primary btn-sm">Send me a test email</button>
+        </form>
+        <p class="text-xs text-slate-500">Free, with Gmail: turn on 2-Step Verification, make an App Password for Mail (16 letters), add SMTP_HOST=smtp.gmail.com, SMTP_PORT=587, SMTP_USER=your Gmail, SMTP_PASSWORD=the App Password to .env, restart the app, then send yourself a test email here.</p>
+    </div>
+
+    <!-- (8) FAQ — NEW in v9.3. Answers to the real questions about
+         how this site works, written from its actual features. -->
+    <div class="bg-white p-6 rounded-2xl border border-slate-200 shadow-sm space-y-4">
+        <h2 class="font-bold text-slate-900">Frequently asked questions</h2>
+        <div class="space-y-4 text-xs">
+            <div>
+                <p class="font-semibold text-slate-800">How do I add a class?</p>
+                <p class="text-slate-500 mt-0.5">On the Students page, use "Create a New Class" — one class is one section of one semester of one department (for example BS Computer Science · Section B · Semester 5). When the section moves to the next semester, create a new class; the old one keeps its history.</p>
+            </div>
+            <div>
+                <p class="font-semibold text-slate-800">How do courses work inside a class?</p>
+                <p class="text-slate-500 mt-0.5">Courses live in the class's Weekly Timetable, not as separate classes. Add each course to the timetable (day, time, course name) and attendance is recorded per course. One class can hold many courses — for example Machine Learning, Operating Systems and Web Engineering in the same section.</p>
+            </div>
+            <div>
+                <p class="font-semibold text-slate-800">How does the camera switch on the Dashboard work?</p>
+                <p class="text-slate-500 mt-0.5">Pick a camera from the dropdown and only the video area changes — the page does not reload. "Primary Active" is the camera a live session uses; you can switch the live view to any other camera for that session without changing the primary. Browser/USB cameras use your laptop's camera; Wireless/IP Stream cameras use a phone or IP camera feed.</p>
+            </div>
+            <div>
+                <p class="font-semibold text-slate-800">What is the 75% rule?</p>
+                <p class="text-slate-500 mt-0.5">University policy needs at least 75% attendance to sit for the final exam. Students below 75% appear on the Defaulters page; below 70% they are "Barred from Final Exam", between 70% and 75% they are on "Borderline Warning". You can change the 75% threshold in the Attendance policy card above.</p>
+            </div>
+            <div>
+                <p class="font-semibold text-slate-800">How do transcript emails work?</p>
+                <p class="text-slate-500 mt-0.5">On the Defaulters page, each student has a "Send Transcript" button, and you can tick several students and use "Send Email" to send transcripts to all of them at once. A transcript lists the student's per-course attendance. Students without an email on file are skipped and named in the result message.</p>
+            </div>
+            <div>
+                <p class="font-semibold text-slate-800">What do I do if email is not configured?</p>
+                <p class="text-slate-500 mt-0.5">Set SMTP in the .env file (see the Email alerts card above for the free Gmail steps), restart the app, then press "Send me a test email" here. Until then, the Send Alert Email buttons will tell you email is not set up — nothing is sent silently.</p>
+            </div>
+            <div>
+                <p class="font-semibold text-slate-800">How does face enrolment work?</p>
+                <p class="text-slate-500 mt-0.5">On the Students page, open a class and capture each student's face from three angles (front, left, right) using the camera, or upload photos in bulk. Attenova stores a 128-D face embedding for each student — not the photo itself for matching — and recognises them during a live class. After enrolling, re-train the ML models from the ML Models page.</p>
+            </div>
+        </div>
+    </div>
+
+    <!-- (9) Helpline — NEW in v9.3. -->
+    <div class="bg-white p-6 rounded-2xl border border-slate-200 shadow-sm space-y-3">
+        <h2 class="font-bold text-slate-900">Helpline</h2>
+        <p class="text-xs text-slate-500">Stuck on something, or something looks wrong? Email the developer directly:</p>
+        <p class="text-sm"><a href="mailto:bahadurali.bscsaif24@iba-suk.edu.pk" class="font-semibold text-iba-blue hover:underline">bahadurali.bscsaif24@iba-suk.edu.pk</a></p>
+        <p class="text-xs text-slate-500">In your email, please include: which page you were on, what happened (or what you expected to happen), and a screenshot if you can. That is usually enough to fix it without a long back-and-forth.</p>
+    </div>
+
+    <!-- (10) Feedback — NEW in v9.3. Saved to the Feedback table;
+         everything sent is listed below, newest first. -->
+    <div class="bg-white p-6 rounded-2xl border border-slate-200 shadow-sm space-y-4">
+        <h2 class="font-bold text-slate-900">Feedback</h2>
+        <p class="text-xs text-slate-500">Tell the developer what works, what confuses you, or what you would like added. Your message is saved here so it can be read and acted on.</p>
+        <form action="{{ url_for('settings.feedback') }}" method="POST" class="space-y-3 text-xs">
+            <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
+            <div class="grid grid-cols-1 md:grid-cols-2 gap-3">
+                <div>
+                    <label class="block font-semibold text-slate-600 mb-1">Your name</label>
+                    <input type="text" name="name" value="{{ current_user.name }}" class="w-full px-3 py-2 border rounded-lg focus:ring-2 focus:ring-iba-blue">
+                </div>
+                <div>
+                    <label class="block font-semibold text-slate-600 mb-1">Your email</label>
+                    <input type="email" name="email" value="{{ current_user.email }}" class="w-full px-3 py-2 border rounded-lg focus:ring-2 focus:ring-iba-blue">
+                </div>
+            </div>
+            <div>
+                <label class="block font-semibold text-slate-600 mb-1">Message <span class="text-rose-600">*</span></label>
+                <textarea name="message" rows="4" required placeholder="What should be better, or what is missing?" class="w-full px-3 py-2 border rounded-lg focus:ring-2 focus:ring-iba-blue"></textarea>
+            </div>
+            <button type="submit" class="btn btn-primary">Send feedback</button>
+        </form>
+        {% if feedback_entries %}
+        <div class="border-t border-slate-100 pt-4 space-y-3">
+            <h3 class="font-semibold text-sm text-slate-800">Submitted feedback ({{ feedback_entries|length }})</h3>
+            {% for f in feedback_entries %}
+            <div class="border border-slate-200 rounded-xl p-3">
+                <p class="text-xs text-slate-500"><strong class="text-slate-700">{{ f.name }}</strong> · {{ f.created_at.strftime('%d %b %Y, %I:%M %p') if f.created_at else '' }}</p>
+                <p class="text-xs text-slate-700 mt-1">{{ f.message }}</p>
+            </div>
+            {% endfor %}
+        </div>
+        {% endif %}
+    </div>
+
+    <!-- (11) About Attenova — redesigned in v9.3: a distinct,
+         premium card, last on the page. Honest facts only. -->
+    <div class="rounded-2xl border border-iba-navy/20 shadow-sm overflow-hidden">
+        <div class="bg-gradient-to-r from-iba-navy to-iba-blue px-6 py-5 text-white">
+            <div class="flex items-center gap-3">
+                <i class="fa-solid fa-graduation-cap text-iba-gold text-2xl"></i>
+                <div>
+                    <h2 class="font-bold text-lg leading-tight">About Attenova</h2>
+                    <p class="text-xs text-blue-100">AI-powered smart university attendance &amp; duration tracking — v9.3</p>
+                </div>
+            </div>
+            <p class="text-xs text-blue-100 mt-3 leading-relaxed">Attenova replaces the paper register with face recognition. A teacher starts a class, the camera recognises each student as they sit down, and attendance — including how long each student was actually present — is recorded automatically, per course, per class.</p>
+        </div>
+        <div class="bg-white p-6">
+            <div class="grid grid-cols-1 md:grid-cols-2 gap-4 text-xs">
+                <div class="border border-slate-200 rounded-xl p-4">
+                    <p class="font-bold text-slate-900"><i class="fa-solid fa-video text-iba-blue mr-1"></i> Multi-camera switching</p>
+                    <p class="text-slate-500 mt-1 leading-relaxed">Wireless/IP Stream cameras (a phone as an IP webcam) and Browser/USB cameras, side by side. Switch the live view from the Dashboard without reloading the page; the primary camera stays as set.</p>
+                </div>
+                <div class="border border-slate-200 rounded-xl p-4">
+                    <p class="font-bold text-slate-900"><i class="fa-solid fa-face-smile text-iba-blue mr-1"></i> Face recognition</p>
+                    <p class="text-slate-500 mt-1 leading-relaxed">Each student is enrolled from three angles (front, left, right) and stored as a 128-D HOG face embedding. Four classifiers — SVM, KNN, Random Forest, Logistic Regression — are benchmarked on the ML Models page.</p>
+                </div>
+                <div class="border border-slate-200 rounded-xl p-4">
+                    <p class="font-bold text-slate-900"><i class="fa-solid fa-calendar-days text-iba-blue mr-1"></i> Timetable auto-attendance</p>
+                    <p class="text-slate-500 mt-1 leading-relaxed">The Weekly Timetable starts sessions automatically on schedule, including Sundays, and can pause a class for a holiday. Presence is tracked in 10-minute blocks, so duration — not just a tick — is recorded.</p>
+                </div>
+                <div class="border border-slate-200 rounded-xl p-4">
+                    <p class="font-bold text-slate-900"><i class="fa-solid fa-chart-line text-iba-blue mr-1"></i> Per-course analytics</p>
+                    <p class="text-slate-500 mt-1 leading-relaxed">Analytics breaks attendance down by course, section, date and student, with K-Means clustering (k = 3) that groups students by attendance and lateness, and an Excel export of any report.</p>
+                </div>
+                <div class="border border-slate-200 rounded-xl p-4">
+                    <p class="font-bold text-slate-900"><i class="fa-solid fa-triangle-exclamation text-iba-blue mr-1"></i> Defaulters, transcripts &amp; drop alerts</p>
+                    <p class="text-slate-500 mt-1 leading-relaxed">Students below the 75% threshold are listed with an ML risk label; the teacher can email a warning or a full attendance transcript to one student or many. If a student's attendance drops into a worse band, the warning goes out automatically.</p>
+                </div>
+                <div class="border border-slate-200 rounded-xl p-4">
+                    <p class="font-bold text-slate-900"><i class="fa-solid fa-user-graduate text-iba-blue mr-1"></i> Student portal</p>
+                    <p class="text-slate-500 mt-1 leading-relaxed">Every student gets a CMS ID and a password at registration and can log in to the Student Portal to see their own attendance, per course, without seeing anyone else's.</p>
+                </div>
+            </div>
+            <div class="mt-5 pt-4 border-t border-slate-100 flex items-center gap-3">
+                <img src="{{ url_for('static', filename='img/developer.jpg') }}" alt="Bahadur Ali" class="w-11 h-11 rounded-full object-cover border-2 border-iba-gold">
+                <div class="text-xs">
+                    <p class="font-bold text-slate-900">Developed by Bahadur Ali</p>
+                    <p class="text-slate-500">Aspiring Machine Learning Engineer · BS Computer Science (AI), Sukkur IBA University</p>
+                </div>
+            </div>
+        </div>
     </div>
 </div>
 {% endblock %}

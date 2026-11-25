@@ -16,7 +16,7 @@ from flask import (Blueprint, current_app, flash, redirect, render_template,
 from flask_login import current_user, login_required
 
 from app import db
-from app.models import AuditLog
+from app.models import AuditLog, Feedback
 from app.services.audit import log_action
 from app.services.email_service import email_status, send_test_email
 from app.services.settings import (get_late_threshold, get_threshold,
@@ -49,15 +49,70 @@ def index():
         flash('Settings saved. The new threshold is used by Analytics, '
               'Defaulters and new attendance records.', 'success')
         return redirect(url_for('settings.index'))
-    audit_entries = (AuditLog.query
-                     .filter_by(teacher_id=current_user.id)
-                     .order_by(AuditLog.created_at.desc())
-                     .limit(50).all())
+    # v9.3: the "My recent activity" card is gone — the audit log
+    # itself still exists (log_action is still called everywhere),
+    # only the card was removed. The Feedback list lives here now.
+    feedback_entries = (Feedback.query
+                        .order_by(Feedback.created_at.desc()).all())
     return render_template('settings.html',
                            threshold=get_threshold(),
                            late_threshold=get_late_threshold(),
-                           audit_entries=audit_entries,
+                           feedback_entries=feedback_entries,
                            email_status=email_status())
+
+
+@settings_bp.route('/personal-details', methods=['POST'])
+@login_required
+def personal_details():
+    """Update the teacher's own details (v9.3).
+
+    Name is required; Qualification and Department are optional.
+    The email is shown read-only on the page — changing the login
+    email would need re-verification, which is out of scope.
+    The name is read live from the DB everywhere it is shown
+    (topbar, dashboard welcome, Your account card, and the emails
+    sent to students), so saving it here updates all of them.
+    """
+    name = request.form.get('name', '').strip()
+    qualification = request.form.get('qualification', '').strip()
+    department = request.form.get('department', '').strip()
+    if not name:
+        flash('Name is required — please enter your name.', 'danger')
+        return redirect(url_for('settings.index'))
+    current_user.name = name
+    current_user.qualification = qualification or None
+    current_user.department = department or None
+    db.session.commit()
+    log_action('profile_update',
+               f'{current_user.email} updated personal details.')
+    flash('Personal details saved — your name is now shown as '
+          f'"{name}" everywhere, including in emails to students.',
+          'success')
+    return redirect(url_for('settings.index'))
+
+
+@settings_bp.route('/feedback', methods=['POST'])
+@login_required
+def feedback():
+    """Save a feedback message from the teacher (v9.3).
+
+    Name and email are prefilled from the logged-in teacher; the
+    message is required. All feedback is listed below the form,
+    newest first, so the owner can read what was sent.
+    """
+    name = request.form.get('name', '').strip() or current_user.name
+    email = request.form.get('email', '').strip() or current_user.email
+    message = request.form.get('message', '').strip()
+    if not message:
+        flash('Please write your feedback message first.', 'danger')
+        return redirect(url_for('settings.index'))
+    entry = Feedback(teacher_id=current_user.id, name=name,
+                     email=email, message=message)
+    db.session.add(entry)
+    db.session.commit()
+    log_action('feedback', f'{email} sent feedback.')
+    flash('Thank you — your feedback has been saved.', 'success')
+    return redirect(url_for('settings.index'))
 
 
 @settings_bp.route('/test-email', methods=['POST'])
