@@ -150,8 +150,15 @@ class Phase7TestCase(unittest.TestCase):
         self._login()
         resp = self.client.get('/analytics/defaulters')
         self.assertEqual(resp.status_code, 200)
-        self.assertIn(b'Usman Tariq', resp.data)
-        self.assertNotIn(b'Ahmed Ali', resp.data)
+        # v9.1: the page has TWO sections now — the at-risk table still
+        # lists only below-threshold students, and eligible students
+        # appear in the Non-defaulters section below it. That is the
+        # deliberate Change 2(a): Ahmed Ali belongs in the second
+        # section now, not nowhere.
+        at_risk, _, non_defaulters = resp.data.partition(b'Non-defaulters')
+        self.assertIn(b'Usman Tariq', at_risk)
+        self.assertNotIn(b'Ahmed Ali', at_risk)
+        self.assertIn(b'Ahmed Ali', non_defaulters)
         self.assertIn(b'Barred', resp.data)
 
     def test_defaulters_export_excel(self):
