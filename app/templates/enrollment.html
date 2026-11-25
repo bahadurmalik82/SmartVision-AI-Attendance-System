@@ -30,13 +30,24 @@
         </p>
     </details>
 
+    <!-- Login-automatic note (v9.2: moved out of the Register card
+         so the two cards match in height — same width as
+         "How classes work" above, compact height) -->
+    <div class="bg-slate-50 border border-slate-200 rounded-2xl p-4 flex items-start gap-3">
+        <i class="fa-solid fa-key text-iba-gold text-lg mt-0.5 flex-shrink-0"></i>
+        <div class="text-xs">
+            <p class="font-semibold text-slate-700">Student login is automatic</p>
+            <p class="text-slate-500 mt-1 leading-relaxed">When you save a student, the system gives them a unique <strong>CMS ID</strong> (CMS-0001, CMS-0002, ...) and a random <strong>password</strong>. Share both with the student — they log in with them on the Student Portal. You can see every student's CMS ID and password on their class page.</p>
+        </div>
+    </div>
+
     <!-- Create a class + Register a student -->
-    <div class="grid grid-cols-1 lg:grid-cols-2 gap-6">
-        <div class="bg-white p-6 rounded-2xl border border-slate-200 shadow-sm space-y-4">
+    <div class="grid grid-cols-1 lg:grid-cols-2 gap-6 items-stretch">
+        <div class="bg-white p-6 rounded-2xl border border-slate-200 shadow-sm space-y-4 h-full flex flex-col">
             <h3 class="text-sm font-bold text-slate-900 flex items-center">
                 <i class="fa-solid fa-layer-group text-iba-blue mr-2"></i> Create a New Class
             </h3>
-            <form action="{{ url_for('students.create_class') }}" method="POST" class="space-y-3 text-xs">
+            <form action="{{ url_for('students.create_class') }}" method="POST" class="space-y-3 text-xs flex flex-col flex-grow">
                 <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
                 <div>
                     <label class="block font-semibold text-slate-600 mb-1">Class name (optional — filled in for you if left blank)</label>
@@ -66,22 +77,22 @@
                     <label class="block font-semibold text-slate-600 mb-1">Course code (optional)</label>
                     <input type="text" name="course_code" placeholder="e.g. CS-101" class="w-full px-3 py-2 border rounded-lg focus:ring-2 focus:ring-iba-blue uppercase">
                 </div>
-                <button type="submit" class="btn btn-primary w-full mt-2">Create Class</button>
+                <button type="submit" class="btn btn-primary w-full mt-auto">Create Class</button>
             </form>
         </div>
 
         <!-- Register New Student (into a class) -->
         <!-- v8: a student must belong to a class, so while no class
              exists this card is disabled (controls off, note shown). -->
-        <div class="bg-white p-6 rounded-2xl border border-slate-200 shadow-sm space-y-4 {% if not classes %}opacity-60{% endif %}" {% if not classes %}aria-disabled="true"{% endif %}>
+        <div class="bg-white p-6 rounded-2xl border border-slate-200 shadow-sm space-y-4 h-full flex flex-col {% if not classes %}opacity-60{% endif %}" {% if not classes %}aria-disabled="true"{% endif %}>
             <h3 class="text-sm font-bold text-slate-900 flex items-center">
                 <i class="fa-solid fa-id-card text-iba-blue mr-2"></i> Register New Student
             </h3>
-            <form action="{{ url_for('students.enroll') }}" method="POST" class="space-y-3 text-xs">
+            <form action="{{ url_for('students.enroll') }}" method="POST" class="space-y-3 text-xs flex flex-col flex-grow">
                 <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
                 <div>
                     <label class="block font-semibold text-slate-600 mb-1">Class (required)</label>
-                    <select name="class_group_id" required {% if not classes %}disabled{% endif %} class="w-full px-3 py-2 border rounded-lg focus:ring-2 focus:ring-iba-blue bg-white">
+                    <select name="class_group_id" required {% if not classes %}disabled{% endif %} class="w-full px-3 py-2 border focus:ring-2 focus:ring-iba-blue bg-white">
                         <option value="">— Choose a class —</option>
                         {% for g in classes %}
                         <option value="{{ g.id }}">{{ g.display_name() }}{% if g.course_name %} · {{ g.course_name }}{% endif %}</option>
@@ -103,11 +114,7 @@
                     <label class="block font-semibold text-slate-600 mb-1">Student Email</label>
                     <input type="email" name="email" {% if not classes %}disabled{% endif %} placeholder="ali@university.edu" class="w-full px-3 py-2 border rounded-lg focus:ring-2 focus:ring-iba-blue">
                 </div>
-                <div class="p-3 bg-slate-50 border border-slate-200 rounded-lg">
-                    <p class="font-semibold text-slate-700"><i class="fa-solid fa-key text-iba-gold mr-1"></i> Student login is automatic</p>
-                    <p class="text-xs text-slate-500 mt-1">When you save a student, the system gives them a unique <strong>CMS ID</strong> (CMS-0001, CMS-0002, ...) and a random <strong>password</strong>. Share both with the student — they log in with them on the Student Portal. You can see every student's CMS ID and password on their class page.</p>
-                </div>
-                <button type="submit" class="btn btn-primary w-full mt-2" {% if not classes %}disabled{% endif %}>
+                <button type="submit" class="btn btn-primary w-full mt-auto" {% if not classes %}disabled{% endif %}>
                     Save Profile & Next
                 </button>
             </form>
@@ -123,7 +130,7 @@
         <form action="{{ url_for('students.import_csv') }}" method="POST" enctype="multipart/form-data" class="flex flex-col md:flex-row gap-3 items-start md:items-center text-xs">
             <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
             <label class="font-semibold text-slate-600">Into class:</label>
-            <select name="class_group_id" required class="px-3 py-2 border rounded-lg focus:ring-2 focus:ring-iba-blue bg-white">
+            <select name="class_group_id" required class="px-3 py-2 border focus:ring-2 focus:ring-iba-blue bg-white">
                 <option value="">— Choose a class —</option>
                 {% for g in classes %}
                 <option value="{{ g.id }}">{{ g.display_name() }}</option>
@@ -136,6 +143,59 @@
         </form>
     </div>
 
+    <!-- Bulk face enrolment (v9.2: moved here from the class page —
+         pick the class, then enrol faces for its students) -->
+    <div class="bg-white p-6 rounded-2xl border border-slate-200 shadow-sm space-y-3">
+        <h3 class="text-sm font-bold text-slate-900 flex items-center">
+            <i class="fa-solid fa-camera text-iba-blue mr-2"></i> Bulk Face Enrolment — 3 photos per student
+        </h3>
+        <p class="text-xs text-slate-500 leading-relaxed">Upload one ZIP containing <code>photos.csv</code> and the photos. Each row of photos.csv names one student and their 3 photos:
+            <code>roll_number, front, left, right</code> — for example <code>023-24-0001, 023-24-0001_front.jpg, 023-24-0001_left.jpg, 023-24-0001_right.jpg</code>.
+            A student is enrolled only when all 3 photos are in the ZIP, are real images, and pass the sharpness check.
+            If a student has a problem, that student is skipped and reported below — the other students still get enrolled.</p>
+        <form action="{{ url_for('students.bulk_photos') }}" method="POST" enctype="multipart/form-data" class="flex flex-col md:flex-row gap-3 items-start md:items-center text-xs">
+            <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
+            <label class="font-semibold text-slate-600" for="bulkPhotosClass">Into class:</label>
+            <select name="class_group_id" id="bulkPhotosClass" required class="px-3 py-2 border focus:ring-2 focus:ring-iba-blue bg-white">
+                <option value="">— Choose a class —</option>
+                {% for g in classes %}
+                <option value="{{ g.id }}">{{ g.display_name() }}</option>
+                {% endfor %}
+            </select>
+            <input type="file" name="zip_file" accept=".zip" required class="text-xs">
+            <button type="submit" class="btn btn-primary btn-sm">Upload ZIP & Enrol Faces</button>
+            <a id="bulkPhotosSampleLink" href="#" data-base="{{ url_for('students.bulk_photos_sample') }}" class="text-iba-blue font-semibold hover:underline opacity-50 pointer-events-none" aria-disabled="true">Download sample photos.csv for the selected class</a>
+            <span id="bulkPhotosSampleHint" class="text-xs text-slate-400">Choose a class first.</span>
+        </form>
+    </div>
+
+    <!-- Bulk face enrolment results (v9.2: renders here now) -->
+    {% if bulk_results %}
+    <div class="bg-white rounded-2xl border {% if bulk_results.failed %}border-amber-300{% else %}border-emerald-300{% endif %} shadow-sm overflow-hidden">
+        <div class="p-4 border-b border-slate-100 {% if bulk_results.failed %}bg-amber-50{% else %}bg-emerald-50{% endif %}">
+            <h3 class="font-bold text-sm {% if bulk_results.failed %}text-amber-600{% else %}text-emerald-600{% endif %}">
+                Bulk face enrolment result: {{ bulk_results.enrolled|length }} enrolled, {{ bulk_results.failed|length }} with a problem
+            </h3>
+        </div>
+        <div class="p-4 text-xs space-y-3">
+            {% if bulk_results.enrolled %}
+            <p class="text-emerald-600 font-semibold">Enrolled: {{ bulk_results.enrolled|map(attribute='name')|join(', ') }}</p>
+            {% endif %}
+            {% if bulk_results.failed %}
+            <div class="space-y-2">
+                {% for f in bulk_results.failed %}
+                <div class="border border-amber-200 bg-amber-50 rounded-xl p-3">
+                    <p class="font-bold text-amber-600">{{ f.roll_number }}{% if f.name %} — {{ f.name }}{% endif %}</p>
+                    <p class="text-amber-600 mt-1"><strong>Problem:</strong> {{ f.issue }}</p>
+                    <p class="text-amber-600"><strong>How to fix it:</strong> {{ f.solution }}</p>
+                </div>
+                {% endfor %}
+            </div>
+            {% endif %}
+        </div>
+    </div>
+    {% endif %}
+
     <!-- My Classes -->
     <div class="bg-white rounded-2xl border border-slate-200 shadow-sm overflow-hidden">
         <div class="p-4 border-b border-slate-100 flex justify-between items-center bg-slate-50">
@@ -145,8 +205,23 @@
         {% if classes %}
         <div class="grid grid-cols-1 md:grid-cols-2 xl:grid-cols-3 gap-4 p-4">
             {% for g in classes %}
-            <article class="border border-slate-200 rounded-2xl p-4 space-y-3 hover:shadow-md transition">
-                <div>
+            <article class="relative border border-slate-200 rounded-2xl p-4 space-y-3 hover:shadow-md transition">
+                <!-- v9.2: small edit badge, top-right — opens the
+                     "Edit Class Details" popup (same fields as the
+                     Create a New Class form). The icon is the
+                     teacher's own edit icon: a pencil inside a
+                     rounded square, drawn as inline SVG. -->
+                <button type="button" data-iba-edit-class data-class-id="{{ g.id }}" data-edit-url="{{ url_for('students.edit_class', class_id=g.id) }}" data-name="{{ g.name }}" data-department="{{ g.department }}" data-semester="{{ g.semester }}" data-section="{{ g.section }}" data-course-name="{{ g.course_name or '' }}" data-course-code="{{ g.course_code or '' }}" title="Edit class details" aria-label="Edit class details" class="absolute top-3 right-3 w-8 h-8 rounded-full border border-slate-200 bg-white text-iba-blue hover:bg-slate-50 flex items-center justify-center shadow-sm">
+                    <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" class="w-4 h-4" aria-hidden="true">
+                        <path d="M13.5 4.5 H7.5 Q4.5 4.5 4.5 7.5 V16.5 Q4.5 19.5 7.5 19.5 H16.5 Q19.5 19.5 19.5 16.5 V13.5"/>
+                        <g transform="rotate(-45 12 12)">
+                            <rect x="10.2" y="1.8" width="3.6" height="2.7" rx="0.8"/>
+                            <rect x="10.2" y="4.5" width="3.6" height="10"/>
+                            <path d="M10.2 14.5 L12 18.6 L13.8 14.5"/>
+                        </g>
+                    </svg>
+                </button>
+                <div class="pr-10">
                     <h4 class="font-bold text-sm text-slate-900">{{ g.name }}</h4>
                     <p class="text-xs text-slate-500 mt-1">{{ g.display_name() }}</p>
                     {% if g.course_name %}
@@ -161,11 +236,6 @@
                     <a href="{{ url_for('students.class_detail', class_id=g.id) }}" class="btn btn-primary btn-sm">
                         <i class="fa-solid fa-users mr-1"></i> View Students
                     </a>
-                    <a href="{{ url_for('students.export_csv', class_id=g.id) }}" class="btn btn-secondary btn-sm">Export CSV</a>
-                    <form action="{{ url_for('students.delete_class', class_id=g.id) }}" method="POST" class="inline" data-iba-confirm data-iba-confirm-title="Delete this class?" data-iba-confirm-message="This class will be deleted completely, including its students and their attendance records. This cannot be undone." data-iba-confirm-text="Delete class">
-                        <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
-                        <button type="submit" class="btn btn-danger btn-sm">Delete Class</button>
-                    </form>
                 </div>
             </article>
             {% endfor %}
@@ -175,4 +245,105 @@
         {% endif %}
     </div>
 </div>
+
+<!-- Edit Class Details popup (v9.2) — a native <dialog>, so it opens
+     in the top layer and no page transform can pin it off-centre
+     (same bug class as the capture modal and the OTP popup). Same
+     fields as the "Create a New Class" form, pre-filled from the
+     badge on the class card. Saving posts to the existing
+     students.edit_class route. -->
+<dialog id="editClassDialog" class="rounded-2xl p-0 w-full max-w-lg shadow-2xl border border-slate-200 text-slate-900">
+    <form id="editClassForm" method="POST" class="p-6 space-y-4 text-xs">
+        <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
+        <div class="flex justify-between items-center pb-3 border-b border-slate-100">
+            <h3 class="font-bold text-base text-slate-900 flex items-center">
+                <i class="fa-solid fa-pen text-iba-blue mr-2"></i> Edit Class Details
+            </h3>
+            <button type="button" onclick="document.getElementById('editClassDialog').close()" class="btn btn-ghost" aria-label="Close">
+                <i class="fa-solid fa-xmark"></i>
+            </button>
+        </div>
+        <div>
+            <label class="block font-semibold text-slate-600 mb-1">Class name (optional — filled in for you if left blank)</label>
+            <input type="text" name="name" id="editClassName" placeholder="e.g. BS CS-AI Section B — Semester 5" class="w-full px-3 py-2 border focus:ring-2 focus:ring-iba-blue">
+        </div>
+        <div class="grid grid-cols-2 gap-2">
+            <div>
+                <label class="block font-semibold text-slate-600 mb-1">Department</label>
+                <input type="text" name="department" id="editClassDepartment" required placeholder="e.g. BS Computer Science - AI" class="w-full px-3 py-2 border focus:ring-2 focus:ring-iba-blue">
+            </div>
+            <div>
+                <label class="block font-semibold text-slate-600 mb-1">Semester</label>
+                <input type="text" name="semester" id="editClassSemester" required placeholder="e.g. 5th" class="w-full px-3 py-2 border focus:ring-2 focus:ring-iba-blue">
+            </div>
+        </div>
+        <div class="grid grid-cols-2 gap-2">
+            <div>
+                <label class="block font-semibold text-slate-600 mb-1">Section</label>
+                <input type="text" name="section" id="editClassSection" required placeholder="e.g. Section B" class="w-full px-3 py-2 border focus:ring-2 focus:ring-iba-blue">
+            </div>
+            <div>
+                <label class="block font-semibold text-slate-600 mb-1">Course (optional)</label>
+                <input type="text" name="course_name" id="editClassCourseName" placeholder="e.g. Mathematics" class="w-full px-3 py-2 border focus:ring-2 focus:ring-iba-blue">
+            </div>
+        </div>
+        <div>
+            <label class="block font-semibold text-slate-600 mb-1">Course code (optional)</label>
+            <input type="text" name="course_code" id="editClassCourseCode" placeholder="e.g. CS-101" class="w-full px-3 py-2 border focus:ring-2 focus:ring-iba-blue uppercase">
+        </div>
+        <div class="flex gap-2 pt-1">
+            <button type="submit" class="btn btn-primary flex-1">Save changes</button>
+            <button type="button" onclick="document.getElementById('editClassDialog').close()" class="btn btn-secondary flex-1">Cancel</button>
+        </div>
+    </form>
+</dialog>
+{% endblock %}
+
+{% block scripts %}
+<script>
+/* v9.2: the small edit badge on each class card opens the
+   "Edit Class Details" popup, pre-filled with that class. */
+document.querySelectorAll('[data-iba-edit-class]').forEach(function (btn) {
+    btn.addEventListener('click', function () {
+        var d = btn.dataset;
+        var dialog = document.getElementById('editClassDialog');
+        document.getElementById('editClassForm').action = d.editUrl;
+        document.getElementById('editClassName').value = d.name || '';
+        document.getElementById('editClassDepartment').value = d.department || '';
+        document.getElementById('editClassSemester').value = d.semester || '';
+        document.getElementById('editClassSection').value = d.section || '';
+        document.getElementById('editClassCourseName').value = d.courseName || '';
+        document.getElementById('editClassCourseCode').value = d.courseCode || '';
+        dialog.showModal();
+    });
+});
+/* Backdrop click closes the popup (ESC closes it natively). */
+document.getElementById('editClassDialog').addEventListener('click', function (e) {
+    if (e.target === this) this.close();
+});
+/* v9.2: the sample photos.csv follows the class picked for bulk
+   face enrolment — until a class is chosen the link stays disabled
+   and says so, so it can never download the wrong class's file. */
+(function () {
+    var select = document.getElementById('bulkPhotosClass');
+    var link = document.getElementById('bulkPhotosSampleLink');
+    var hint = document.getElementById('bulkPhotosSampleHint');
+    if (!select || !link) return;
+    function syncSampleLink() {
+        if (select.value) {
+            link.href = link.dataset.base + '?class_group_id=' + encodeURIComponent(select.value);
+            link.classList.remove('opacity-50', 'pointer-events-none');
+            link.removeAttribute('aria-disabled');
+            if (hint) hint.style.display = 'none';
+        } else {
+            link.href = '#';
+            link.classList.add('opacity-50', 'pointer-events-none');
+            link.setAttribute('aria-disabled', 'true');
+            if (hint) hint.style.display = '';
+        }
+    }
+    select.addEventListener('change', syncSampleLink);
+    syncSampleLink();
+})();
+</script>
 {% endblock %}

@@ -138,8 +138,11 @@ def index():
         }
     unassigned = _my_students_query().filter(
         Student.class_group_id.is_(None)).count()
+    # v9.2: bulk face-enrolment results, if the teacher just uploaded
+    # a ZIP from the card below the CSV import.
+    bulk_results = flask_session.pop('bulk_photos_results', None)
     return render_template('enrollment.html', classes=classes, stats=stats,
-                           unassigned=unassigned)
+                           unassigned=unassigned, bulk_results=bulk_results)
 
 
 @students_bp.route('/classes/create', methods=['POST'])
@@ -239,14 +242,9 @@ def class_detail(class_id):
         query = query.filter(or_(Student.roll_number.ilike(like),
                                  Student.name.ilike(like)))
     pagination = query.paginate(page=page, per_page=PAGE_SIZE, error_out=False)
-    # Bulk face-enrolment results, if the teacher just uploaded a ZIP.
-    bulk_results = flask_session.pop('bulk_photos_results', None)
-    if bulk_results and bulk_results.get('class_id') != group.id:
-        bulk_results = None
     return render_template('class_detail.html', group=group,
                            students=pagination.items,
-                           pagination=pagination, q=q,
-                           bulk_results=bulk_results)
+                           pagination=pagination, q=q)
 
 
 # ----------------------------------------------------------------------
@@ -591,12 +589,19 @@ def export_csv():
 # valid and sharp enough. Any problem is reported per student, with
 # what to do about it — and the other students still get enrolled.
 # ----------------------------------------------------------------------
-@students_bp.route('/class/<int:class_id>/bulk-photos/sample')
+@students_bp.route('/bulk-photos/sample')
 @login_required
-def bulk_photos_sample(class_id):
-    """Download photos.csv for this class, pre-filled with its students
-    and the photo filenames to use (e.g. 023-24-0001_front.jpg)."""
-    group = _get_my_class(class_id)
+def bulk_photos_sample():
+    """Download photos.csv for the class the teacher picked on the
+    Students page, pre-filled with its students and the photo
+    filenames to use (e.g. 023-24-0001_front.jpg)."""
+    raw_id = (request.args.get('class_group_id') or '').strip()
+    try:
+        group = _get_my_class(int(raw_id))
+    except (ValueError, TypeError):
+        flash('Choose a class first, then download its sample photos.csv.',
+              'warning')
+        return redirect(url_for('students.index'))
     students = Student.query.filter_by(class_group_id=group.id).order_by(Student.roll_number).all()
     buf = io.StringIO()
     writer = csv.writer(buf)
@@ -616,33 +621,26 @@ def _bulk_photo_failure(roll, name, issue, solution):
             'issue': issue, 'solution': solution}
 
 
-@students_bp.route('/class/<int:class_id>/bulk-photos', methods=['POST'])
-@login_required
-def bulk_photos(class_id):
-    group = _get_my_class(class_id)
-    file = request.files.get('zip_file')
-    if not file or not file.filename:
-        flash('Please choose a ZIP file to upload.', 'warning')
-        return redirect(url_for('students.class_detail', class_id=class_id))
-    if not file.filename.lower().endswith('.zip'):
-        flash('Only .zip files can be used for bulk face enrolment.', 'danger')
-        return redirect(url_for('students.class_detail', class_id=class_id))
+def _run_bulk_photos(zip_bytes, group):
+    """Work a bulk-photos ZIP for one class.
 
-    try:
-        zip_bytes = file.read()
-    except Exception:
-        flash('Could not read that ZIP file.', 'danger')
-        return redirect(url_for('students.class_detail', class_id=class_id))
-
+    Returns (enrolled, failed, error): enrolled / failed are the
+    per-student results; error is a short message for the teacher
+    when the ZIP itself cannot be used at all (bad ZIP, no
+    photos.csv, ...), otherwise None. A student is only enrolled
+    when all 3 angles are present, valid and sharp enough — any
+    problem is reported per student, and the other students still
+    get enrolled.
+    """
     enrolled, failed = [], []
     try:
         with zipfile.ZipFile(io.BytesIO(zip_bytes)) as zf:
             # Safety: no absolute paths, no "..", and a sane total size.
             infos = [i for i in zf.infolist() if not i.is_dir()]
             if sum(i.file_size for i in infos) > MAX_BULK_ZIP_BYTES:
-                flash('That ZIP is too large (over 50 MB uncompressed). '
-                      'Use smaller photos, or upload in two batches.', 'danger')
-                return redirect(url_for('students.class_detail', class_id=class_id))
+                return enrolled, failed, ('That ZIP is too large (over '
+                    '50 MB uncompressed). Use smaller photos, or upload '
+                    'in two batches.')
             by_name = {}
             for info in infos:
                 name = info.filename.replace('\\', '/').split('/')[-1]
@@ -655,30 +653,28 @@ def bulk_photos(class_id):
             csv_info = next((i for n, i in by_name.items()
                              if n.endswith('.csv')), None)
             if csv_info is None:
-                flash('No photos.csv found inside the ZIP. Download the '
-                      'sample photos.csv from this page, fill it in, and '
-                      'put it in the ZIP with the photos.', 'danger')
-                return redirect(url_for('students.class_detail', class_id=class_id))
+                return enrolled, failed, ('No photos.csv found inside '
+                    'the ZIP. Download the sample photos.csv from the '
+                    'Students page, fill it in, and put it in the ZIP '
+                    'with the photos.')
             try:
                 csv_text = zf.read(csv_info).decode('utf-8-sig')
             except Exception:
-                flash('photos.csv inside the ZIP could not be read. '
-                      'Save it as UTF-8 CSV and try again.', 'danger')
-                return redirect(url_for('students.class_detail', class_id=class_id))
+                return enrolled, failed, ('photos.csv inside the ZIP '
+                    'could not be read. Save it as UTF-8 CSV and try again.')
             reader = csv.DictReader(io.StringIO(csv_text))
             if not reader.fieldnames or 'roll_number' not in reader.fieldnames \
                     or not {'front', 'left', 'right'} <= set(reader.fieldnames):
-                flash('photos.csv must have roll_number, front, left and '
-                      'right columns. Download the sample to see the format.',
-                      'danger')
-                return redirect(url_for('students.class_detail', class_id=class_id))
+                return enrolled, failed, ('photos.csv must have '
+                    'roll_number, front, left and right columns. '
+                    'Download the sample to see the format.')
 
             seen_rolls = set()
             for row in reader:
                 roll = (row.get('roll_number') or '').strip().upper()
                 if not roll:
                     failed.append(_bulk_photo_failure(
-                        '—', '',
+                        '\u2014', '',
                         'A row in photos.csv has no roll number.',
                         'Fill in the roll number for that row and re-upload.'))
                     continue
@@ -699,8 +695,8 @@ def bulk_photos(class_id):
                 if student.class_group_id != group.id:
                     failed.append(_bulk_photo_failure(
                         roll, student.name,
-                        f'This student is in a different class ({student.department} · {student.section} · Semester {student.semester}), not this one.',
-                        'Upload their photos from their own class page, or move the student to this class first.'))
+                        f'This student is in a different class ({student.department} \u00b7 {student.section} \u00b7 Semester {student.semester}), not this one.',
+                        'Upload their photos from the Bulk Face Enrolment card on the Students page, or move the student to this class first.'))
                     continue
                 # The 3 photo filenames for this student.
                 wanted = {}
@@ -755,15 +751,50 @@ def bulk_photos(class_id):
                 enrolled.append({'roll_number': roll, 'name': student.name})
         db.session.commit()
     except zipfile.BadZipFile:
-        flash('That file is not a valid ZIP. Please zip the photos.csv and '
-              'photos together and try again.', 'danger')
-        return redirect(url_for('students.class_detail', class_id=class_id))
+        return enrolled, failed, ('That file is not a valid ZIP. Please '
+            'zip the photos.csv and photos together and try again.')
     except Exception as exc:
         db.session.rollback()
         current_app.logger.warning(f'Bulk face enrolment failed: {exc}')
-        flash('Could not process that ZIP. Check the format against the '
-              'sample photos.csv and try again.', 'danger')
-        return redirect(url_for('students.class_detail', class_id=class_id))
+        return enrolled, failed, ('Could not process that ZIP. Check the '
+            'format against the sample photos.csv and try again.')
+    return enrolled, failed, None
+
+
+@students_bp.route('/bulk-photos', methods=['POST'])
+@login_required
+def bulk_photos():
+    """Bulk face enrolment from the Students page (v9.2).
+
+    The teacher picks the class on the form; the ZIP enrols faces
+    for students in THAT class. Results render on the Students page.
+    """
+    raw_id = (request.form.get('class_group_id') or '').strip()
+    try:
+        group = _get_my_class(int(raw_id))
+    except (ValueError, TypeError):
+        flash('Choose a class first — the ZIP enrols faces for the '
+              'students of that class.', 'danger')
+        return redirect(url_for('students.index'))
+
+    file = request.files.get('zip_file')
+    if not file or not file.filename:
+        flash('Please choose a ZIP file to upload.', 'warning')
+        return redirect(url_for('students.index'))
+    if not file.filename.lower().endswith('.zip'):
+        flash('Only .zip files can be used for bulk face enrolment.', 'danger')
+        return redirect(url_for('students.index'))
+
+    try:
+        zip_bytes = file.read()
+    except Exception:
+        flash('Could not read that ZIP file.', 'danger')
+        return redirect(url_for('students.index'))
+
+    enrolled, failed, error = _run_bulk_photos(zip_bytes, group)
+    if error:
+        flash(error, 'danger')
+        return redirect(url_for('students.index'))
 
     flask_session['bulk_photos_results'] = {
         'class_id': group.id,
@@ -781,4 +812,4 @@ def bulk_photos(class_id):
     else:
         flash(f'Bulk face enrolment finished: {len(enrolled)} student(s) '
               f'enrolled with all 3 angles.', 'success')
-    return redirect(url_for('students.class_detail', class_id=class_id))
+    return redirect(url_for('students.index'))
