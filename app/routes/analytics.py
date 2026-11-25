@@ -4,8 +4,8 @@ import os
 from datetime import datetime
 
 import numpy as np
-from flask import (Blueprint, current_app, flash, redirect, render_template,
-                   request, send_file, url_for)
+from flask import (Blueprint, current_app, flash, jsonify, redirect,
+                   render_template, request, send_file, url_for)
 from flask_login import current_user, login_required
 from openpyxl import Workbook
 from sqlalchemy import or_
@@ -14,7 +14,8 @@ from app import db
 from app.ml_engine.classifier_benchmark import FaceClassifierBenchmark
 from app.ml_engine.clustering import cluster_students
 from app.ml_engine.defaulter_predictor import predict_defaulters
-from app.models import AttendanceRecord, AttendanceSession, Schedule, Student
+from app.models import (AttendanceRecord, AttendanceSession, ClassGroup,
+                        Schedule, Student)
 from app.services.audit import log_action
 from app.services.email_service import (NOT_CONFIGURED_MSG,
                                         build_transcript_data,
@@ -58,7 +59,37 @@ def _record_matches(record, course=None, date=None):
     return True
 
 
-def get_student_aggregates(course=None, section=None, date=None, student_id=None):
+def _is_fetch():
+    """True when the request is a fetch call (v9.3 no-reload updates):
+    the JS sends X-Requested-With, or asks for JSON outright."""
+    return (request.headers.get('X-Requested-With') == 'XMLHttpRequest'
+            or request.accept_mimetypes.best == 'application/json')
+
+
+def _get_my_class(class_id):
+    """One of my class groups, or 404."""
+    return ClassGroup.query.filter_by(
+        id=class_id, teacher_id=current_user.id).first_or_404()
+
+
+def _my_classes_with_stats():
+    """My class groups (by name) with student/face counts, for the
+    class-card grids on the Analytics and Defaulters pages."""
+    from app.models import ClassGroup as _CG
+    classes = _CG.query.filter_by(
+        teacher_id=current_user.id).order_by(_CG.name).all()
+    stats = {}
+    for group in classes:
+        students = Student.query.filter_by(class_group_id=group.id).all()
+        stats[group.id] = {
+            'total': len(students),
+            'faces': sum(1 for s in students if s.face_embedding_json),
+        }
+    return classes, stats
+
+
+def get_student_aggregates(course=None, section=None, date=None, student_id=None,
+                           class_group_id=None):
     """Per-student attendance aggregates, honouring the active filters.
 
     Returns a list of dicts (one per matching student), each with:
@@ -73,6 +104,8 @@ def get_student_aggregates(course=None, section=None, date=None, student_id=None
         query = query.filter(Student.section == section)
     if student_id:
         query = query.filter(Student.id == student_id)
+    if class_group_id:
+        query = query.filter(Student.class_group_id == class_group_id)
     students = query.all()
 
     rows = []
@@ -177,6 +210,31 @@ def _analytics_context():
                           .filter(AttendanceRecord.student_id.in_(my_ids))
                           .order_by(AttendanceRecord.id.desc())
                           .limit(50).all())
+    # v9.3: class cards on the main page (the records/correct tables
+    # moved to per-class pages), plus the global search: one search
+    # across ALL classes. The current filter values scope the search
+    # results, exactly like they scope the aggregate rows.
+    classes, class_stats = _my_classes_with_stats()
+    q = request.args.get('q', '').strip()
+    search_results = []
+    if q:
+        like = f'%{q}%'
+        matched = _my_students_query().filter(or_(
+            Student.name.ilike(like),
+            Student.roll_number.ilike(like),
+            Student.cms_id.ilike(like),
+            Student.email.ilike(like))).all()
+        matched_ids = {s.id for s in matched}
+        for r in rows:
+            if r['student'].id in matched_ids:
+                group = r['student'].class_group
+                search_results.append({
+                    'student': r['student'],
+                    'total_classes': r['total_classes'],
+                    'avg_percentage': r['avg_percentage'],
+                    'class_name': group.display_name() if group else '—',
+                    'class_group_id': group.id if group else None,
+                })
     return {
         'rows': rows,
         'students': students,
@@ -192,6 +250,10 @@ def _analytics_context():
         'selected_section': section or '',
         'selected_date': date_str or '',
         'selected_student_id': str(parsed_student_id) if parsed_student_id else '',
+        'classes': classes,
+        'class_stats': class_stats,
+        'q': q,
+        'search_results': search_results,
     }
 
 
@@ -208,13 +270,97 @@ def clusters():
     return render_template('analytics.html', **_analytics_context())
 
 
-def _build_defaulters():
+def _class_records_context(group):
+    """Aggregate rows + hidden students for ONE class (v9.3).
+
+    The main Analytics page's filters (course/date) apply here too,
+    scoped to this class; the class-card buttons carry them over.
+    """
+    course, section, parsed_date, _sid, date_str = _parse_filters()
+    rows = get_student_aggregates(course=course, section=section,
+                                  date=parsed_date, student_id=_sid,
+                                  class_group_id=group.id)
+    courses = [c[0] for c in Schedule.query.filter_by(
+        teacher_id=current_user.id).with_entities(
+            Schedule.course_name).distinct().all()]
+    class_students = Student.query.filter_by(
+        class_group_id=group.id).order_by(Student.roll_number).all()
+    shown_ids = {r['student'].id for r in rows}
+    hidden_students = []
+    for st in class_students:
+        if st.id in shown_ids:
+            continue
+        hidden_students.append({
+            'student': st,
+            'reason': ('no record for this course/date'
+                       if (course or parsed_date)
+                       else 'outside the current filter'),
+        })
+    return {
+        'group': group,
+        'rows': rows,
+        'students': class_students,
+        'total_students': len(class_students),
+        'hidden_students': hidden_students,
+        'filter_hides_records': bool(course or parsed_date),
+        'courses': courses,
+        'threshold': get_threshold(),
+        'selected_course': course or '',
+        'selected_date': date_str or '',
+        'table_id': 'ibaClassRecordsTable',
+        'export_url': url_for('analytics.export_excel', course=course,
+                              date=date_str, class_group_id=group.id),
+    }
+
+
+@analytics_bp.route('/class/<int:class_id>/records')
+@login_required
+def class_records(class_id):
+    """One class's students with their attendance records (v9.3).
+
+    Same columns as the old all-students table on the Analytics
+    page — Roll No, Student Name, Section, Total Lectures, Aggregate
+    Attendance, Status — but only this class's enrolled students,
+    so the page stays short even with 1000s of students elsewhere.
+    """
+    group = _get_my_class(class_id)
+    return render_template('analytics_class_records.html',
+                           **_class_records_context(group))
+
+
+@analytics_bp.route('/class/<int:class_id>/correct')
+@login_required
+def class_correct(class_id):
+    """One class's recent records, for manual correction (v9.3).
+
+    Same table as the old "Correct a record" block on the Analytics
+    page — Date, Student, Course, Now, Correct to — but only this
+    class's students.
+    """
+    group = _get_my_class(class_id)
+    my_ids = [s.id for s in Student.query.filter_by(
+        class_group_id=group.id).all()]
+    recent_records = []
+    if my_ids:
+        recent_records = (AttendanceRecord.query
+                          .filter(AttendanceRecord.student_id.in_(my_ids))
+                          .order_by(AttendanceRecord.id.desc())
+                          .limit(50).all())
+    return render_template('analytics_class_correct.html',
+                           group=group, recent_records=recent_records,
+                           threshold=get_threshold())
+
+
+def _build_defaulters(class_group_id=None):
     """Defaulter + non-defaulter lists, enriched with the ML predictor
     + cluster labels. Returns (defaulter_list, non_defaulter_list,
     prediction). Defaulters are below the threshold; non-defaulters
     are at or above it and are shown in their own section of the
-    Defaulters page so transcripts can go to them too."""
-    rows = get_student_aggregates()
+    Defaulters page so transcripts can go to them too.
+
+    v9.3: pass a class_group_id to build the lists for ONE class only.
+    """
+    rows = get_student_aggregates(class_group_id=class_group_id)
     prediction = predict_defaulters([{
         'student_id': r['student'].id,
         'roll_number': r['student'].roll_number,
@@ -263,13 +409,96 @@ def _build_defaulters():
 @analytics_bp.route('/defaulters')
 @login_required
 def defaulters():
+    """Defaulters home page (v9.3): class cards + the global search.
+
+    One card per class (with that class's defaulter / eligible
+    counts) plus an "All defaulters (all classes)" card. Clicking a
+    card opens that scope's list — the tables themselves live on
+    the per-class and global list pages, so no page ever lists
+    thousands of students at once.
+    """
+    classes, class_stats = _my_classes_with_stats()
     defaulter_list, non_defaulter_list, prediction = _build_defaulters()
-    return render_template('defaulters.html', defaulters=defaulter_list,
-                           non_defaulters=non_defaulter_list,
+    counts = {}
+    for group in classes:
+        counts[group.id] = {
+            'defaulters': sum(
+                1 for d in defaulter_list
+                if d['student'].class_group_id == group.id),
+            'eligible': sum(
+                1 for d in non_defaulter_list
+                if d['student'].class_group_id == group.id),
+        }
+    q = request.args.get('q', '').strip()
+    search_results = []
+    if q:
+        needle = q.lower()
+        for d, status in ([(d, 'Ineligible') for d in defaulter_list]
+                          + [(d, 'Eligible') for d in non_defaulter_list]):
+            st = d['student']
+            hay = ' '.join([st.name or '', st.roll_number or '',
+                            st.cms_id or '', st.email or '']).lower()
+            if needle in hay:
+                group = st.class_group
+                search_results.append({
+                    'entry': d, 'status': status,
+                    'class_name': group.display_name() if group else '—',
+                    'class_group_id': group.id if group else None,
+                })
+    return render_template('defaulters.html',
+                           classes=classes, class_stats=class_stats,
+                           counts=counts,
+                           defaulters_total=len(defaulter_list),
+                           eligible_total=len(non_defaulter_list),
                            prediction_method=prediction['method'],
                            prediction_note=prediction['note'],
                            threshold=get_threshold(),
-                           email_configured=is_configured())
+                           q=q, search_results=search_results)
+
+
+def _defaulters_list_context(class_group_id=None):
+    """Shared context for the per-class and global list pages."""
+    defaulter_list, non_defaulter_list, prediction = _build_defaulters(
+        class_group_id=class_group_id)
+    return {
+        'defaulters': defaulter_list,
+        'non_defaulters': non_defaulter_list,
+        'prediction_method': prediction['method'],
+        'prediction_note': prediction['note'],
+        'threshold': get_threshold(),
+        'email_configured': is_configured(),
+    }
+
+
+@analytics_bp.route('/defaulters/all')
+@login_required
+def defaulters_all():
+    """Every defaulter of every class (v9.3 global list).
+
+    Same tables as the old Defaulters page, plus a Class column
+    naming each student's class.
+    """
+    ctx = _defaulters_list_context()
+    return render_template('defaulters_list.html', show_class=True,
+                           title='All defaulters (all classes)',
+                           export_url=url_for(
+                               'analytics.export_defaulters_excel'),
+                           **ctx)
+
+
+@analytics_bp.route('/defaulters/class/<int:class_id>')
+@login_required
+def defaulters_class(class_id):
+    """One class's defaulters + eligible students (v9.3)."""
+    group = _get_my_class(class_id)
+    ctx = _defaulters_list_context(class_group_id=group.id)
+    return render_template('defaulters_list.html', show_class=False,
+                           group=group,
+                           title=f'Defaulters — {group.display_name()}',
+                           export_url=url_for(
+                               'analytics.export_defaulters_excel',
+                               class_group_id=group.id),
+                           **ctx)
 
 
 def _excel_response(filename, headers, data_rows):
@@ -297,10 +526,21 @@ def _excel_response(filename, headers, data_rows):
 @analytics_bp.route('/export-excel')
 @login_required
 def export_excel():
-    """Download the (filtered) attendance report as .xlsx."""
+    """Download the (filtered) attendance report as .xlsx.
+
+    v9.3: `?class_group_id=` scopes the export to one class (the
+    per-class records page uses it).
+    """
     course, section, parsed_date, parsed_student_id, _ = _parse_filters()
+    class_group_id = request.args.get('class_group_id', '').strip() or None
+    if class_group_id:
+        try:
+            class_group_id = int(class_group_id)
+        except ValueError:
+            class_group_id = None
     rows = get_student_aggregates(course=course, section=section,
-                                  date=parsed_date, student_id=parsed_student_id)
+                                  date=parsed_date, student_id=parsed_student_id,
+                                  class_group_id=class_group_id)
     data = [[r['student'].roll_number, r['student'].name, r['student'].section,
              r['student'].department, r['total_classes'], r['avg_percentage'],
              'Present' if r['avg_percentage'] >= get_threshold() else
@@ -318,8 +558,18 @@ def export_excel():
 @analytics_bp.route('/defaulters/export-excel')
 @login_required
 def export_defaulters_excel():
-    """Download the <75% defaulter list as .xlsx."""
-    defaulter_list, _, _ = _build_defaulters()
+    """Download the <75% defaulter list as .xlsx.
+
+    v9.3: `?class_group_id=` scopes the export to one class (the
+    per-class list page uses it); without it, all classes export.
+    """
+    class_group_id = request.args.get('class_group_id', '').strip() or None
+    if class_group_id:
+        try:
+            class_group_id = int(class_group_id)
+        except ValueError:
+            class_group_id = None
+    defaulter_list, _, _ = _build_defaulters(class_group_id=class_group_id)
     data = [[d['student'].roll_number, d['student'].name, d['student'].department,
              d['total_classes'], d['avg_percentage'], d['status'],
              d.get('cluster_label', ''), d.get('risk_label', '')]
@@ -342,12 +592,16 @@ def email_defaulter(student_id):
     try:
         sent, message = send_defaulter_alert(
             student.email, student.name, avg_pct,
-            threshold=get_threshold())
+            threshold=get_threshold(), teacher_name=current_user.name)
     except Exception as exc:  # email must never break the dashboard
         current_app.logger.warning(f'Defaulter email failed: {exc}')
         sent, message = False, "Could not send email. Please try again later."
     flash(message, "success" if sent else "warning")
-    return redirect(url_for('analytics.defaulters'))
+    # v9.3: land back on the list the teacher was looking at.
+    if student.class_group_id:
+        return redirect(url_for('analytics.defaulters_class',
+                                class_id=student.class_group_id))
+    return redirect(url_for('analytics.defaulters_all'))
 
 
 @analytics_bp.route('/defaulters/transcript/<int:student_id>', methods=['POST'])
@@ -374,7 +628,11 @@ def email_transcript(student_id):
                    f'Transcript sent to {student.roll_number} — '
                    f'{student.name}.')
     flash(message, "success" if sent else "warning")
-    return redirect(url_for('analytics.defaulters'))
+    # v9.3: land back on the list the teacher was looking at.
+    if student.class_group_id:
+        return redirect(url_for('analytics.defaulters_class',
+                                class_id=student.class_group_id))
+    return redirect(url_for('analytics.defaulters_all'))
 
 
 @analytics_bp.route('/defaulters/transcript-selected', methods=['POST'])
@@ -390,12 +648,12 @@ def email_transcript_selected():
     """
     if not is_configured():
         flash(NOT_CONFIGURED_MSG, "warning")
-        return redirect(url_for('analytics.defaulters'))
+        return redirect(url_for('analytics.defaulters_all'))
     ids = request.form.getlist('student_ids')
     if not ids:
         flash('No students selected — tick the boxes first, then '
               'Send Email.', 'warning')
-        return redirect(url_for('analytics.defaulters'))
+        return redirect(url_for('analytics.defaulters_all'))
     threshold = get_threshold()
     sent_names, skipped_names, failed_names = [], [], []
     for raw_id in ids:
@@ -436,7 +694,7 @@ def email_transcript_selected():
                    f"{', '.join(sent_names)}.")
     flash(' '.join(parts) if parts else 'No transcripts were sent.',
           'success' if sent_names and not failed_names else 'warning')
-    return redirect(url_for('analytics.defaulters'))
+    return redirect(url_for('analytics.defaulters_all'))
 
 
 @analytics_bp.route('/correct/<int:record_id>', methods=['POST'])
@@ -494,10 +752,28 @@ def correct_record(record_id):
                f'{record.student.roll_number} record #{record.id}: '
                f'{status}, {minutes} min'
                + (f' — {reason}' if reason else ''))
-    flash(f"Record corrected for {record.student.name} "
-          f"({record.student.roll_number}): {status}, {minutes} min.",
-          'success')
-    return redirect(url_for('analytics.index'))
+    message = (f"Record corrected for {record.student.name} "
+               f"({record.student.roll_number}): {status}, {minutes} min.")
+    if _is_fetch():
+        # v9.3: no flash on a fetch — the message rides in the JSON
+        # and the page swaps the row's "Now" cell in place.
+        return jsonify({
+            'ok': True,
+            'message': message,
+            'html': render_template('_correct_row.html', rec=record),
+        })
+    flash(message, 'success')
+    return redirect(_correct_redirect(record))
+
+
+def _correct_redirect(record):
+    """Where a normal (non-fetch) correction lands: back on the
+    per-class correct page of the record's student's class (v9.3),
+    or on the Analytics page when the class is unknown."""
+    if record.student and record.student.class_group_id:
+        return url_for('analytics.class_correct',
+                       class_id=record.student.class_group_id)
+    return url_for('analytics.index')
 
 
 @analytics_bp.route('/benchmark')

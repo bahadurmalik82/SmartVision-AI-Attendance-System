@@ -60,6 +60,13 @@ def index():
     )
 
 
+def _is_fetch():
+    """True when the request is a fetch call (v9.3 no-reload updates):
+    the JS sends X-Requested-With, or asks for JSON outright."""
+    return (request.headers.get('X-Requested-With') == 'XMLHttpRequest'
+            or request.accept_mimetypes.best == 'application/json')
+
+
 @dashboard_bp.route('/dashboard/camera/select', methods=['POST'])
 @login_required
 def select_camera():
@@ -69,17 +76,32 @@ def select_camera():
     untouched. The camera must belong to this teacher (404
     otherwise), and the choice is kept in the session until the
     teacher picks another camera or deletes this one.
+
+    v9.3: a fetch call gets JSON with the re-rendered video area
+    (only the camera refreshes, never the whole page); a normal
+    POST still flashes and redirects, exactly as before.
     """
     raw_id = (request.form.get('camera_id') or '').strip()
     try:
         camera_id = int(raw_id)
     except ValueError:
+        if _is_fetch():
+            return jsonify({'ok': False,
+                            'message': 'Please choose a camera first.'}), 400
         flash('Please choose a camera first.', 'warning')
         return redirect(url_for('dashboard.index'))
     cam = CameraSource.query.filter_by(
         id=camera_id, teacher_id=current_user.id).first_or_404()
     flask_session['dashboard_camera_id'] = cam.id
-    flash(f"Now viewing: {cam.name}.", "success")
+    message = f"Now viewing: {cam.name}."
+    if _is_fetch():
+        return jsonify({
+            'ok': True,
+            'message': message,
+            'html': render_template('_dashboard_video.html',
+                                    view_camera=cam),
+        })
+    flash(message, "success")
     return redirect(url_for('dashboard.index'))
 
 

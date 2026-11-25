@@ -1,0 +1,34 @@
+{# v9.3: one row of the "Correct a record" table — the same row
+   as the old Analytics page showed, extracted so the correct
+   endpoint can re-render just this row for a fetch update.
+   Expects: rec (an AttendanceRecord). The "Now" cell carries
+   data-iba-now-cell so the page JS can swap it in place. #}
+<tr class="hover:bg-slate-50/80 transition" data-iba-correct-row="{{ rec.id }}">
+    <td class="p-3.5">{{ rec.session.session_date if rec.session else '-' }}</td>
+    <td class="p-3.5 font-semibold text-slate-900">{{ rec.student.name }} <span class="text-slate-500 font-normal">({{ rec.student.roll_number }})</span>{% if rec.manual_override %} <span class="text-iba-gold font-bold">· corrected</span>{% endif %}</td>
+    <td class="p-3.5 text-slate-600">{{ rec.session.course_name if rec.session else '-' }}</td>
+    <td class="p-3.5" data-iba-now-cell>{{ rec.status }} · {{ rec.minutes_present }} min · {{ rec.attendance_percentage }}%</td>
+    <td class="p-3.5">
+        <form action="{{ url_for('analytics.correct_record', record_id=rec.id) }}" method="POST" class="flex flex-wrap items-end gap-1.5" data-iba-correct-form="{{ rec.id }}">
+            <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
+            <div>
+                <label class="block text-[10px] font-semibold text-slate-500 mb-0.5">Status</label>
+                <select name="status" class="border border-slate-300 px-2 py-1.5 bg-white">
+                    <option value="Present" {% if rec.status == 'Present' %}selected{% endif %}>Present</option>
+                    <option value="Late" {% if rec.status == 'Late' %}selected{% endif %}>Late</option>
+                    <option value="Left Early" {% if rec.status == 'Left Early' %}selected{% endif %}>Left Early</option>
+                    <option value="Absent" {% if rec.status == 'Absent' %}selected{% endif %}>Absent</option>
+                </select>
+            </div>
+            <div>
+                <label class="block text-[10px] font-semibold text-slate-500 mb-0.5">Minutes present</label>
+                <input type="number" name="minutes_present" value="{{ rec.minutes_present }}" min="0" step="1" class="w-20 border border-slate-300 rounded-lg px-2 py-1.5" title="How many minutes of the class the student was present">
+            </div>
+            <div>
+                <label class="block text-[10px] font-semibold text-slate-500 mb-0.5">Reason (optional)</label>
+                <input type="text" name="reason" placeholder="Reason (optional)" class="w-40 border border-slate-300 rounded-lg px-2 py-1.5">
+            </div>
+            <button type="submit" class="btn btn-primary btn-sm">Save correction</button>
+        </form>
+    </td>
+</tr>

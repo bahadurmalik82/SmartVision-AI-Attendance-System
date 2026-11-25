@@ -1,0 +1,83 @@
+{% extends 'base.html' %}
+{% block title %}Correct a record — {{ group.display_name() }}{% endblock %}
+
+{% block content %}
+<div class="space-y-6">
+    <div>
+        <a href="{{ url_for('analytics.index') }}" class="text-xs text-iba-blue hover:underline"><i class="fa-solid fa-arrow-left mr-1"></i> Back to Analytics</a>
+        <h1 class="text-2xl font-bold text-slate-900 mt-2">Correct a record — {{ group.name }}</h1>
+        <p class="text-xs text-slate-500 mt-1">{{ group.display_name() }}{% if group.course_name %} · {{ group.course_code or '' }} {{ group.course_name }}{% endif %} — only this class's students. Corrections save in place, without a page reload.</p>
+    </div>
+
+    <!-- Manual Attendance Correction -->
+    <div class="bg-white rounded-2xl border border-slate-200 shadow-sm overflow-hidden no-print">
+        <div class="p-4 border-b border-slate-100 bg-slate-50">
+            <h3 class="font-bold text-sm text-slate-900">Correct a record (manual override)</h3>
+            <p class="text-xs text-slate-500 mt-1">Fix a wrongly marked student: choose the status, correct the minutes, and optionally give a reason. The change is logged.</p>
+        </div>
+        <div class="overflow-x-auto">
+            <table class="w-full text-left text-xs">
+                <thead class="bg-slate-100/70 text-slate-600 uppercase font-semibold">
+                    <tr>
+                        <th class="p-3.5">Date</th>
+                        <th class="p-3.5">Student</th>
+                        <th class="p-3.5">Course</th>
+                        <th class="p-3.5">Now</th>
+                        <th class="p-3.5">Correct to</th>
+                    </tr>
+                </thead>
+                <tbody class="divide-y divide-slate-100">
+                    {% for rec in recent_records %}
+                    {% include '_correct_row.html' %}
+                    {% else %}
+                    <tr><td colspan="5" class="p-6 text-center text-slate-400">No attendance records yet — run a class first.</td></tr>
+                    {% endfor %}
+                </tbody>
+            </table>
+        </div>
+    </div>
+</div>
+{% endblock %}
+
+{% block scripts %}
+<script>
+/* v9.3: save a correction without a page reload — the row's "Now"
+   cell updates in place. Delegated, so a row swapped in by a
+   previous correction still saves the same way. A normal POST
+   (JS off, or a failed fetch) still redirects back to this page,
+   exactly as before. */
+document.addEventListener('submit', function (e) {
+    var form = e.target.closest ? e.target.closest('[data-iba-correct-form]') : null;
+    if (!form) return;
+    e.preventDefault();
+    var meta = document.querySelector('meta[name="csrf-token"]');
+    var token = meta ? meta.getAttribute('content') : '';
+    fetch(form.action, {
+        method: 'POST',
+        headers: {'X-CSRFToken': token,
+                  'X-Requested-With': 'XMLHttpRequest',
+                  'Accept': 'application/json'},
+        body: new FormData(form)
+    })
+    .then(function (res) { return res.json().then(function (data) {
+        return {status: res.status, data: data};
+    }); })
+    .then(function (out) {
+        if (!out.data.ok) {
+            if (window.showIbaAlert) showIbaAlert('Could not save', out.data.message || 'Please check the form and try again.', 'error');
+            return;
+        }
+        var row = document.querySelector(
+            '[data-iba-correct-row="' + form.dataset.ibaCorrectForm + '"]');
+        if (row && out.data.html) {
+            var tmp = document.createElement('tbody');
+            tmp.innerHTML = out.data.html.trim();
+            var fresh = tmp.firstElementChild;
+            if (fresh) row.replaceWith(fresh);
+        }
+        if (window.showIbaAlert) showIbaAlert('Record corrected', out.data.message || 'Saved.', 'success');
+    })
+    .catch(function () { form.submit(); });
+});
+</script>
+{% endblock %}

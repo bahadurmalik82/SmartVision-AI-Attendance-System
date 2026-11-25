@@ -13,7 +13,7 @@
     <!-- Form to Add New Class -->
     <div class="bg-white p-6 rounded-2xl border border-slate-200 shadow-sm">
         <h2 class="text-sm font-bold text-slate-900 mb-4">Add Recurrent Class to Timetable</h2>
-        <form action="{{ url_for('timetable.add') }}" method="POST" class="grid grid-cols-1 md:grid-cols-4 gap-4 text-xs">
+        <form id="ibaTimetableAddForm" action="{{ url_for('timetable.add') }}" method="POST" class="grid grid-cols-1 md:grid-cols-4 gap-4 text-xs">
             <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
             <div>
                 <label class="block font-semibold text-slate-600 mb-1">Course Code</label>
@@ -56,7 +56,7 @@
                 <label class="block font-semibold text-slate-600 mb-1">Lecture End Time</label>
                 <input type="time" name="end_time" required value="10:40" class="w-full px-3 py-2 border rounded-lg focus:ring-2 focus:ring-iba-blue">
             </div>
-            <div class="md:col-span-2 flex items-end justify-center">
+            <div class="md:col-span-2 flex items-end justify-start">
                 <button type="submit" class="btn btn-primary">
                     Save Class to Weekly Schedule
                 </button>
@@ -84,44 +84,11 @@
                         <th class="p-3.5 text-right">Actions</th>
                     </tr>
                 </thead>
-                <tbody class="divide-y divide-slate-100">
+                <tbody class="divide-y divide-slate-100" id="ibaTimetableBody">
                     {% for s in schedules %}
-                    <tr class="hover:bg-slate-50/80 transition">
-                        <td class="p-3.5 font-bold text-slate-900">
-                            {{ s.course_code }}
-                            <span class="font-normal text-slate-500 block">{{ s.course_name }}</span>
-                        </td>
-                        <td class="p-3.5 text-slate-600">{{ s.class_group.display_name() if s.class_group else '—' }}</td>
-                        <td class="p-3.5 text-slate-600">{{ s.section }}</td>
-                        <td class="p-3.5 font-semibold text-iba-blue">{{ s.day_of_week }}</td>
-                        <td class="p-3.5 text-slate-700">
-                            {{ s.start_time.strftime('%I:%M %p') }} - {{ s.end_time.strftime('%I:%M %p') }}
-                        </td>
-                        <td class="p-3.5 text-slate-500">{{ s.duration_minutes() }} Mins</td>
-                        <td class="p-3.5">
-                            {% if s.is_paused %}
-                            <span class="bg-slate-100 text-slate-700 border border-slate-200 px-2.5 py-0.5 rounded-full font-medium">Holiday Paused</span>
-                            {% else %}
-                            <span class="bg-emerald-50 text-emerald-600 border border-emerald-200 px-2.5 py-0.5 rounded-full font-medium">Active (Auto)</span>
-                            {% endif %}
-                        </td>
-                        <td class="p-3.5 text-right space-x-2">
-                            <form action="{{ url_for('timetable.toggle_pause', schedule_id=s.id) }}" method="POST" class="inline">
-            <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
-                                <button type="submit" class="text-xs text-slate-600 hover:text-slate-700 px-2 py-1 rounded border border-slate-200">
-                                    {{ 'Resume' if s.is_paused else 'Pause/Holiday' }}
-                                </button>
-                            </form>
-                            <form action="{{ url_for('timetable.delete', schedule_id=s.id) }}" method="POST" class="inline" data-iba-confirm data-iba-confirm-title="Remove this class?" data-iba-confirm-message="This class will be removed from your weekly timetable." data-iba-confirm-text="Remove">
-            <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
-                                <button type="submit" class="text-xs text-rose-600 hover:text-rose-600 px-2 py-1 rounded border border-rose-200">
-                                    Delete
-                                </button>
-                            </form>
-                        </td>
-                    </tr>
+                    {% include '_timetable_row.html' %}
                     {% else %}
-                    <tr>
+                    <tr data-iba-empty-row>
                         <td colspan="8" class="p-6 text-center text-slate-400">
                             No classes in your schedule yet. Fill the form above to add your weekly classes.
                         </td>
@@ -132,4 +99,81 @@
         </div>
     </div>
 </div>
+{% endblock %}
+
+{% block scripts %}
+<script>
+(function () {
+    'use strict';
+    /* v9.3: timetable updates without a page reload. The forms still
+       work as normal POSTs (flash + redirect) when JS is off or the
+       fetch itself fails — the fallback submits them normally. */
+    function csrfToken() {
+        var meta = document.querySelector('meta[name="csrf-token"]');
+        return meta ? meta.getAttribute('content') : '';
+    }
+    function fetchHeaders() {
+        return {'X-CSRFToken': csrfToken(),
+                'X-Requested-With': 'XMLHttpRequest',
+                'Accept': 'application/json'};
+    }
+    function showMsg(title, message, type) {
+        if (window.showIbaAlert) showIbaAlert(title, message, type || 'success');
+    }
+
+    /* Pause/Holiday <-> Resume, in place. */
+    document.querySelectorAll('[data-iba-pause-form]').forEach(function (form) {
+        form.addEventListener('submit', function (e) {
+            e.preventDefault();
+            fetch(form.action, {method: 'POST', headers: fetchHeaders(),
+                                body: new FormData(form)})
+                .then(function (res) {
+                    if (!res.ok) throw new Error('toggle failed');
+                    return res.json();
+                })
+                .then(function (data) {
+                    if (!data.ok) throw new Error(data.message || 'toggle failed');
+                    var row = form.closest('[data-iba-schedule-row]');
+                    if (!row) return;
+                    var cell = row.querySelector('[data-iba-status-cell]');
+                    var btn = row.querySelector('[data-iba-pause-btn]');
+                    if (cell) {
+                        cell.innerHTML = data.is_paused
+                            ? '<span class="bg-slate-100 text-slate-700 border border-slate-200 px-2.5 py-0.5 rounded-full font-medium">Holiday Paused</span>'
+                            : '<span class="bg-emerald-50 text-emerald-600 border border-emerald-200 px-2.5 py-0.5 rounded-full font-medium">Active (Auto)</span>';
+                    }
+                    if (btn) btn.textContent = data.is_paused ? 'Resume' : 'Pause/Holiday';
+                    if (data.message) showMsg('Timetable updated', data.message, 'success');
+                })
+                .catch(function () { form.submit(); });
+        });
+    });
+
+    /* Add a timetable entry, in place. */
+    var addForm = document.getElementById('ibaTimetableAddForm');
+    if (addForm) {
+        addForm.addEventListener('submit', function (e) {
+            e.preventDefault();
+            fetch(addForm.action, {method: 'POST', headers: fetchHeaders(),
+                                   body: new FormData(addForm)})
+                .then(function (res) { return res.json().then(function (data) {
+                    return {status: res.status, data: data};
+                }); })
+                .then(function (out) {
+                    if (!out.data.ok) {
+                        showMsg('Could not save', out.data.message || 'Please check the form and try again.', 'error');
+                        return;
+                    }
+                    var body = document.getElementById('ibaTimetableBody');
+                    var empty = body ? body.querySelector('[data-iba-empty-row]') : null;
+                    if (empty) empty.remove();
+                    if (body) body.insertAdjacentHTML('beforeend', out.data.html);
+                    addForm.reset();
+                    if (out.data.message) showMsg('Class added', out.data.message, 'success');
+                })
+                .catch(function () { addForm.submit(); });
+        });
+    }
+})();
+</script>
 {% endblock %}

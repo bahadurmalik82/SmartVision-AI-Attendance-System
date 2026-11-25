@@ -51,6 +51,18 @@ MAX_BULK_ZIP_BYTES = 50 * 1024 * 1024  # uncompressed ZIP total for bulk photos
 PAGE_SIZE = 20
 
 
+def _is_fetch():
+    """True when the request is a fetch call (v9.3 no-reload updates):
+    the JS sends X-Requested-With, or asks for JSON outright."""
+    return (request.headers.get('X-Requested-With') == 'XMLHttpRequest'
+            or request.accept_mimetypes.best == 'application/json')
+
+
+def _fetch_error(message):
+    """JSON error answer for a fetch call (v9.3)."""
+    return jsonify({'ok': False, 'message': message}), 400
+
+
 def _my_students_query():
     """Students owned by me, plus legacy rows with no owner yet."""
     return Student.query.filter(
@@ -156,15 +168,22 @@ def create_class():
     course_code = request.form.get('course_code', '').strip().upper()
 
     if not department or not semester or not section:
-        flash('Department, Semester and Section are all required to create a class.', 'danger')
+        message = ('Department, Semester and Section are all required '
+                   'to create a class.')
+        if _is_fetch():
+            return _fetch_error(message)
+        flash(message, 'danger')
         return redirect(url_for('students.index'))
 
     existing = ClassGroup.query.filter_by(
         teacher_id=current_user.id, department=department,
         semester=semester, section=section).first()
     if existing:
-        flash(f'That class already exists: {existing.display_name()}. '
-              f'Enrol students into it instead of creating a duplicate.', 'warning')
+        message = (f'That class already exists: {existing.display_name()}. '
+                   f'Enrol students into it instead of creating a duplicate.')
+        if _is_fetch():
+            return _fetch_error(message)
+        flash(message, 'warning')
         return redirect(url_for('students.index'))
 
     group = ClassGroup(
@@ -176,8 +195,23 @@ def create_class():
     db.session.add(group)
     db.session.commit()
     log_action('class_create', f'Class created: {group.display_name()}.')
-    flash(f'Class created: {group.display_name()}. Now enrol students into it '
-          f'using the Register form or the CSV import below.', 'success')
+    message = (f'Class created: {group.display_name()}. Now enrol students '
+               f'into it using the Register form or the CSV import below.')
+    if _is_fetch():
+        # v9.3: no flash on a fetch (it would pop up on the NEXT full
+        # page load instead) — the message rides in the JSON, and the
+        # rendered card is appended to "My Classes" by the page JS.
+        total = ClassGroup.query.filter_by(
+            teacher_id=current_user.id).count()
+        return jsonify({
+            'ok': True,
+            'message': message,
+            'classes_total': total,
+            'html': render_template(
+                '_class_card.html', g=group,
+                stats={group.id: {'total': 0, 'faces': 0}}),
+        })
+    flash(message, 'success')
     return redirect(url_for('students.index'))
 
 
@@ -258,12 +292,18 @@ def enroll():
     email = request.form.get('email', '').strip().lower()
 
     if not roll_number or not name:
-        flash("Roll Number and Full Name are required.", "danger")
+        message = "Roll Number and Full Name are required."
+        if _is_fetch():
+            return _fetch_error(message)
+        flash(message, "danger")
         return redirect(_safe_return_to(url_for('students.index')))
 
     existing = Student.query.filter_by(roll_number=roll_number).first()
     if existing:
-        flash(f"Student with Roll No '{roll_number}' is already registered.", "warning")
+        message = f"Student with Roll No '{roll_number}' is already registered."
+        if _is_fetch():
+            return _fetch_error(message)
+        flash(message, "warning")
         return redirect(_safe_return_to(url_for('students.index')))
 
     group = _class_for_enrolment(request.form)
@@ -283,11 +323,23 @@ def enroll():
     db.session.add(new_student)
     db.session.commit()
     log_action('student_add', f'{roll_number} — {name} ({new_student.cms_id}) into {group.display_name()}.')
-    flash(f"Student '{name} ({roll_number})' registered into {group.display_name()}! "
-          f"CMS ID: {new_student.cms_id} — Password: {password}. Share these with "
-          f"the student so they can log in on the Student Portal "
-          f"(shown here and on the Students page). Now capture their "
-          f"face photos below.", "success")
+    message = (f"Student '{name} ({roll_number})' registered into "
+               f"{group.display_name()}! CMS ID: {new_student.cms_id} — "
+               f"Password: {password}. Share these with the student so they "
+               f"can log in on the Student Portal (shown here and on the "
+               f"Students page). Now capture their face photos below.")
+    if _is_fetch():
+        # v9.3: no flash on a fetch — the message rides in the JSON
+        # (it carries the new CMS ID + password, so the teacher can
+        # share them), and the page bumps that class card's count.
+        total = Student.query.filter_by(class_group_id=group.id).count()
+        return jsonify({
+            'ok': True,
+            'message': message,
+            'class_group_id': group.id,
+            'students_total': total,
+        })
+    flash(message, "success")
     return redirect(_safe_return_to(url_for('students.index')))
 
 

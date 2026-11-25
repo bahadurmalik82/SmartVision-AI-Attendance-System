@@ -1,0 +1,39 @@
+{# v9.3: one timetable entry row. Rendered by timetable.html and
+   returned as JSON by the add endpoint so a new entry appears in
+   the list without a page reload. Needs `s in context. The
+   data-iba-* hooks let the pause/resume fetch update this row in
+   place. #}
+<tr class="hover:bg-slate-50/80 transition" data-iba-schedule-row="{{ s.id }}">
+    <td class="p-3.5 font-bold text-slate-900">
+        {{ s.course_code }}
+        <span class="font-normal text-slate-500 block">{{ s.course_name }}</span>
+    </td>
+    <td class="p-3.5 text-slate-600">{{ s.class_group.display_name() if s.class_group else '—' }}</td>
+    <td class="p-3.5 text-slate-600">{{ s.section }}</td>
+    <td class="p-3.5 font-semibold text-iba-blue">{{ s.day_of_week }}</td>
+    <td class="p-3.5 text-slate-700">
+        {{ s.start_time.strftime('%I:%M %p') }} - {{ s.end_time.strftime('%I:%M %p') }}
+    </td>
+    <td class="p-3.5 text-slate-500">{{ s.duration_minutes() }} Mins</td>
+    <td class="p-3.5" data-iba-status-cell>
+        {% if s.is_paused %}
+        <span class="bg-slate-100 text-slate-700 border border-slate-200 px-2.5 py-0.5 rounded-full font-medium">Holiday Paused</span>
+        {% else %}
+        <span class="bg-emerald-50 text-emerald-600 border border-emerald-200 px-2.5 py-0.5 rounded-full font-medium">Active (Auto)</span>
+        {% endif %}
+    </td>
+    <td class="p-3.5 text-right space-x-2">
+        <form action="{{ url_for('timetable.toggle_pause', schedule_id=s.id) }}" method="POST" class="inline" data-iba-pause-form>
+            <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
+            <button type="submit" class="text-xs text-slate-600 hover:text-slate-700 px-2 py-1 rounded border border-slate-200" data-iba-pause-btn>
+                {{ 'Resume' if s.is_paused else 'Pause/Holiday' }}
+            </button>
+        </form>
+        <form action="{{ url_for('timetable.delete', schedule_id=s.id) }}" method="POST" class="inline" data-iba-confirm data-iba-confirm-title="Remove this class?" data-iba-confirm-message="This class will be removed from your weekly timetable." data-iba-confirm-text="Remove">
+            <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
+            <button type="submit" class="text-xs text-rose-600 hover:text-rose-600 px-2 py-1 rounded border border-rose-200">
+                Delete
+            </button>
+        </form>
+    </td>
+</tr>

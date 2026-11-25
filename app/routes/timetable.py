@@ -1,5 +1,6 @@
 from datetime import datetime
-from flask import Blueprint, render_template, request, redirect, url_for, flash
+from flask import (Blueprint, render_template, request, redirect, url_for,
+                   flash, jsonify)
 from flask_login import login_required, current_user
 from app import db
 from app.models import Schedule, ClassGroup, get_or_create_class_group
@@ -10,6 +11,18 @@ timetable_bp = Blueprint('timetable', __name__, url_prefix='/timetable')
 # Sunday, and a teacher may reschedule a class to Sunday.
 DAYS_OF_WEEK = ['Monday', 'Tuesday', 'Wednesday', 'Thursday', 'Friday',
                 'Saturday', 'Sunday']
+
+
+def _is_fetch():
+    """True when the request is a fetch call (v9.3 no-reload updates):
+    the JS sends X-Requested-With, or asks for JSON outright."""
+    return (request.headers.get('X-Requested-With') == 'XMLHttpRequest'
+            or request.accept_mimetypes.best == 'application/json')
+
+
+def _fetch_error(message):
+    """JSON error answer for a fetch call (v9.3)."""
+    return jsonify({'ok': False, 'message': message}), 400
 
 
 @timetable_bp.route('/')
@@ -35,17 +48,26 @@ def add():
 
     # v5: the day must be one of the 7 real days (Sunday is valid now).
     if day_of_week not in DAYS_OF_WEEK:
-        flash("Please choose a day of the week (Monday to Sunday).", "danger")
+        message = "Please choose a day of the week (Monday to Sunday)."
+        if _is_fetch():
+            return _fetch_error(message)
+        flash(message, "danger")
         return redirect(url_for('timetable.index'))
 
     try:
         start_time = datetime.strptime(start_str, '%H:%M').time()
         end_time = datetime.strptime(end_str, '%H:%M').time()
     except (ValueError, TypeError):
-        flash("Invalid time format. Please use HH:MM.", "danger")
+        message = "Invalid time format. Please use HH:MM."
+        if _is_fetch():
+            return _fetch_error(message)
+        flash(message, "danger")
         return redirect(url_for('timetable.index'))
     if end_time <= start_time:
-        flash("End time must be after start time.", "danger")
+        message = "End time must be after start time."
+        if _is_fetch():
+            return _fetch_error(message)
+        flash(message, "danger")
         return redirect(url_for('timetable.index'))
 
     # v5: link the entry to a class group. If the teacher picked a
@@ -61,7 +83,10 @@ def add():
         except ValueError:
             class_group = None
         if class_group is None:
-            flash("That class was not found. Please choose a class again.", "danger")
+            message = "That class was not found. Please choose a class again."
+            if _is_fetch():
+                return _fetch_error(message)
+            flash(message, "danger")
             return redirect(url_for('timetable.index'))
         department, semester, section = (class_group.department,
                                          class_group.semester,
@@ -85,7 +110,17 @@ def add():
     )
     db.session.add(new_sched)
     db.session.commit()
-    flash(f"Class '{course_code} ({day_of_week})' added to weekly timetable for {class_group.display_name()}!", "success")
+    message = (f"Class '{course_code} ({day_of_week})' added to weekly "
+               f"timetable for {class_group.display_name()}!")
+    if _is_fetch():
+        # v9.3: no flash on a fetch (it would pop up on the NEXT full
+        # page load instead) — the message rides in the JSON.
+        return jsonify({
+            'ok': True,
+            'message': message,
+            'html': render_template('_timetable_row.html', s=new_sched),
+        })
+    flash(message, "success")
     return redirect(url_for('timetable.index'))
 
 
@@ -96,7 +131,12 @@ def toggle_pause(schedule_id):
     sched.is_paused = not sched.is_paused
     db.session.commit()
     state = "paused (Holiday/Cancelled)" if sched.is_paused else "resumed (Active)"
-    flash(f"Class '{sched.course_code}' is now {state}.", "info")
+    message = f"Class '{sched.course_code}' is now {state}."
+    if _is_fetch():
+        # v9.3: no flash on a fetch — the message rides in the JSON.
+        return jsonify({'ok': True, 'is_paused': sched.is_paused,
+                        'message': message})
+    flash(message, "info")
     return redirect(url_for('timetable.index'))
 
 

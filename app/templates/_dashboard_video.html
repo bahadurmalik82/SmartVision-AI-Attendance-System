@@ -1,0 +1,38 @@
+{# v9.3: the dashboard video area as a partial. Rendered inside
+   #videoContainer by dashboard.html, and returned as JSON by the
+   camera-switch endpoint so only the camera refreshes — never the
+   whole page. Needs `view_camera` in context. #}
+{% set active_cam = view_camera %}
+{% if active_cam and active_cam.camera_type == 'ip_webcam' and active_cam.stream_url %}
+    <!-- Embedded Mobile IP Webcam Stream -->
+    <img id="liveVideoFeed" src="{{ active_cam.stream_url }}" alt="Live IP Webcam Feed" class="w-full h-full object-contain" onerror="handleStreamError(this)">
+{% else %}
+    <!-- Browser Webcam / Standby View -->
+    <video id="browserVideo" autoplay playsinline muted class="w-full h-full object-contain hidden"></video>
+    <div id="standbyPlaceholder" class="text-center p-6 space-y-2">
+        <i class="fa-solid fa-video text-2xl text-slate-600"></i>
+        <p class="text-sm font-semibold text-slate-300">
+            {{ active_cam.name if active_cam else 'No Camera Configured' }}
+        </p>
+        <p class="text-xs text-slate-500 max-w-sm">
+            {% if active_cam and active_cam.camera_type == 'browser' %}
+            Click "Start Browser Camera" below to use your laptop / USB webcam.
+            {% elif active_cam and active_cam.camera_type == 'ip_webcam' %}
+            Connecting to mobile phone stream at <code>{{ active_cam.stream_url }}</code>...
+            {% else %}
+            Please visit <a href="{{ url_for('cameras.index') }}" class="text-iba-gold underline">Camera Settings</a> to configure your Mobile IP Webcam or USB camera.
+            {% endif %}
+        </p>
+        {% if active_cam and active_cam.camera_type == 'browser' %}
+        <button onclick="startBrowserWebcam()" class="btn btn-primary mt-2">
+            <i class="fa-solid fa-camera mr-1"></i> Start Browser Camera
+        </button>
+        {% endif %}
+    </div>
+{% endif %}
+
+<!-- Detection Overlay Toast -->
+<div id="liveDetectionToast" class="absolute bottom-3 left-3 bg-slate-900/90 text-white text-xs px-3 py-1.5 rounded-lg border border-slate-700 hidden flex items-center space-x-2">
+    <span id="toastIcon">●</span>
+    <span id="toastText">Tracking active...</span>
+</div>

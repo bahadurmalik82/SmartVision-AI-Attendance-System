@@ -47,7 +47,7 @@
             <h3 class="text-sm font-bold text-slate-900 flex items-center">
                 <i class="fa-solid fa-layer-group text-iba-blue mr-2"></i> Create a New Class
             </h3>
-            <form action="{{ url_for('students.create_class') }}" method="POST" class="space-y-3 text-xs flex flex-col flex-grow">
+            <form id="ibaCreateClassForm" action="{{ url_for('students.create_class') }}" method="POST" class="space-y-3 text-xs flex flex-col flex-grow">
                 <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
                 <div>
                     <label class="block font-semibold text-slate-600 mb-1">Class name (optional — filled in for you if left blank)</label>
@@ -88,7 +88,7 @@
             <h3 class="text-sm font-bold text-slate-900 flex items-center">
                 <i class="fa-solid fa-id-card text-iba-blue mr-2"></i> Register New Student
             </h3>
-            <form action="{{ url_for('students.enroll') }}" method="POST" class="space-y-3 text-xs flex flex-col flex-grow">
+            <form id="ibaEnrollForm" action="{{ url_for('students.enroll') }}" method="POST" class="space-y-3 text-xs flex flex-col flex-grow">
                 <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
                 <div>
                     <label class="block font-semibold text-slate-600 mb-1">Class (required)</label>
@@ -200,49 +200,19 @@
     <div class="bg-white rounded-2xl border border-slate-200 shadow-sm overflow-hidden">
         <div class="p-4 border-b border-slate-100 flex justify-between items-center bg-slate-50">
             <h3 class="font-bold text-xs uppercase tracking-wider text-slate-600">My Classes</h3>
-            <span class="text-xs text-slate-500 font-semibold">{{ classes|length }} class(es)</span>
+            <span class="text-xs text-slate-500 font-semibold" id="ibaMyClassesCount">{{ classes|length }} class(es)</span>
         </div>
+        <div id="ibaMyClassesBody">
         {% if classes %}
-        <div class="grid grid-cols-1 md:grid-cols-2 xl:grid-cols-3 gap-4 p-4">
+        <div class="grid grid-cols-1 md:grid-cols-2 xl:grid-cols-3 gap-4 p-4" id="ibaMyClassesGrid">
             {% for g in classes %}
-            <article class="relative border border-slate-200 rounded-2xl p-4 space-y-3 hover:shadow-md transition">
-                <!-- v9.2: small edit badge, top-right — opens the
-                     "Edit Class Details" popup (same fields as the
-                     Create a New Class form). The icon is the
-                     teacher's own edit icon: a pencil inside a
-                     rounded square, drawn as inline SVG. -->
-                <button type="button" data-iba-edit-class data-class-id="{{ g.id }}" data-edit-url="{{ url_for('students.edit_class', class_id=g.id) }}" data-name="{{ g.name }}" data-department="{{ g.department }}" data-semester="{{ g.semester }}" data-section="{{ g.section }}" data-course-name="{{ g.course_name or '' }}" data-course-code="{{ g.course_code or '' }}" title="Edit class details" aria-label="Edit class details" class="absolute top-3 right-3 w-8 h-8 rounded-full border border-slate-200 bg-white text-iba-blue hover:bg-slate-50 flex items-center justify-center shadow-sm">
-                    <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" class="w-4 h-4" aria-hidden="true">
-                        <path d="M13.5 4.5 H7.5 Q4.5 4.5 4.5 7.5 V16.5 Q4.5 19.5 7.5 19.5 H16.5 Q19.5 19.5 19.5 16.5 V13.5"/>
-                        <g transform="rotate(-45 12 12)">
-                            <rect x="10.2" y="1.8" width="3.6" height="2.7" rx="0.8"/>
-                            <rect x="10.2" y="4.5" width="3.6" height="10"/>
-                            <path d="M10.2 14.5 L12 18.6 L13.8 14.5"/>
-                        </g>
-                    </svg>
-                </button>
-                <div class="pr-10">
-                    <h4 class="font-bold text-sm text-slate-900">{{ g.name }}</h4>
-                    <p class="text-xs text-slate-500 mt-1">{{ g.display_name() }}</p>
-                    {% if g.course_name %}
-                    <p class="text-xs text-slate-500">{{ g.course_code or '' }} {{ g.course_name }}</p>
-                    {% endif %}
-                </div>
-                <div class="flex gap-2 text-xs">
-                    <span class="iba-badge"><i class="fa-solid fa-users mr-1"></i> {{ stats[g.id].total }} student(s)</span>
-                    <span class="iba-badge"><i class="fa-solid fa-face-smile mr-1"></i> {{ stats[g.id].faces }} with face photos</span>
-                </div>
-                <div class="flex flex-wrap gap-2">
-                    <a href="{{ url_for('students.class_detail', class_id=g.id) }}" class="btn btn-primary btn-sm">
-                        <i class="fa-solid fa-users mr-1"></i> View Students
-                    </a>
-                </div>
-            </article>
+            {% include '_class_card.html' %}
             {% endfor %}
         </div>
         {% else %}
-        <p class="p-8 text-center text-slate-400 text-sm">No classes yet. Create your first class above, then enrol students into it.</p>
+        <p class="p-8 text-center text-slate-400 text-sm" id="ibaMyClassesEmpty">No classes yet. Create your first class above, then enrol students into it.</p>
         {% endif %}
+        </div>
     </div>
 </div>
 
@@ -302,20 +272,22 @@
 {% block scripts %}
 <script>
 /* v9.2: the small edit badge on each class card opens the
-   "Edit Class Details" popup, pre-filled with that class. */
-document.querySelectorAll('[data-iba-edit-class]').forEach(function (btn) {
-    btn.addEventListener('click', function () {
-        var d = btn.dataset;
-        var dialog = document.getElementById('editClassDialog');
-        document.getElementById('editClassForm').action = d.editUrl;
-        document.getElementById('editClassName').value = d.name || '';
-        document.getElementById('editClassDepartment').value = d.department || '';
-        document.getElementById('editClassSemester').value = d.semester || '';
-        document.getElementById('editClassSection').value = d.section || '';
-        document.getElementById('editClassCourseName').value = d.courseName || '';
-        document.getElementById('editClassCourseCode').value = d.courseCode || '';
-        dialog.showModal();
-    });
+   "Edit Class Details" popup, pre-filled with that class.
+   Delegated (v9.3) so cards added by the create-class fetch
+   get the popup too, without rebinding. */
+document.addEventListener('click', function (e) {
+    var btn = e.target.closest ? e.target.closest('[data-iba-edit-class]') : null;
+    if (!btn) return;
+    var d = btn.dataset;
+    var dialog = document.getElementById('editClassDialog');
+    document.getElementById('editClassForm').action = d.editUrl;
+    document.getElementById('editClassName').value = d.name || '';
+    document.getElementById('editClassDepartment').value = d.department || '';
+    document.getElementById('editClassSemester').value = d.semester || '';
+    document.getElementById('editClassSection').value = d.section || '';
+    document.getElementById('editClassCourseName').value = d.courseName || '';
+    document.getElementById('editClassCourseCode').value = d.courseCode || '';
+    dialog.showModal();
 });
 /* Backdrop click closes the popup (ESC closes it natively). */
 document.getElementById('editClassDialog').addEventListener('click', function (e) {
@@ -344,6 +316,79 @@ document.getElementById('editClassDialog').addEventListener('click', function (e
     }
     select.addEventListener('change', syncSampleLink);
     syncSampleLink();
+})();
+
+/* v9.3: create-class and register-student without a page reload.
+   Both forms still work as normal POSTs (flash + redirect) when JS
+   is off or the fetch itself fails — the fallback submits them. */
+(function () {
+    function csrfToken() {
+        var meta = document.querySelector('meta[name="csrf-token"]');
+        return meta ? meta.getAttribute('content') : '';
+    }
+    function fetchHeaders() {
+        return {'X-CSRFToken': csrfToken(),
+                'X-Requested-With': 'XMLHttpRequest',
+                'Accept': 'application/json'};
+    }
+    function showMsg(title, message, type) {
+        if (window.showIbaAlert) showIbaAlert(title, message, type || 'success');
+    }
+    function postForm(form, onOk) {
+        fetch(form.action, {method: 'POST', headers: fetchHeaders(),
+                            body: new FormData(form)})
+            .then(function (res) { return res.json().then(function (data) {
+                return {status: res.status, data: data};
+            }); })
+            .then(function (out) {
+                if (!out.data.ok) {
+                    showMsg('Could not save', out.data.message || 'Please check the form and try again.', 'error');
+                    return;
+                }
+                onOk(out.data);
+            })
+            .catch(function () { form.submit(); });
+    }
+
+    /* Create a New Class: append the new card to "My Classes". */
+    var createForm = document.getElementById('ibaCreateClassForm');
+    if (createForm) {
+        createForm.addEventListener('submit', function (e) {
+            e.preventDefault();
+            postForm(createForm, function (data) {
+                var body = document.getElementById('ibaMyClassesBody');
+                var grid = document.getElementById('ibaMyClassesGrid');
+                if (grid) {
+                    grid.insertAdjacentHTML('beforeend', data.html);
+                } else if (body) {
+                    var empty = document.getElementById('ibaMyClassesEmpty');
+                    if (empty) empty.remove();
+                    body.insertAdjacentHTML('beforeend',
+                        '<div class="grid grid-cols-1 md:grid-cols-2 xl:grid-cols-3 gap-4 p-4" id="ibaMyClassesGrid">' + data.html + '</div>');
+                }
+                var count = document.getElementById('ibaMyClassesCount');
+                if (count) count.textContent = data.classes_total + ' class(es)';
+                createForm.reset();
+                if (data.message) showMsg('Class created', data.message, 'success');
+            });
+        });
+    }
+
+    /* Register New Student: toast (with the new CMS ID + password),
+       reset the form, and bump that class card's student count. */
+    var enrollForm = document.getElementById('ibaEnrollForm');
+    if (enrollForm) {
+        enrollForm.addEventListener('submit', function (e) {
+            e.preventDefault();
+            postForm(enrollForm, function (data) {
+                var badge = document.querySelector(
+                    '[data-iba-class-count="' + data.class_group_id + '"]');
+                if (badge) badge.innerHTML = '<i class="fa-solid fa-users mr-1"></i> ' + data.students_total + ' student(s)';
+                enrollForm.reset();
+                if (data.message) showMsg('Student registered', data.message, 'success');
+            });
+        });
+    }
 })();
 </script>
 {% endblock %}
