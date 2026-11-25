@@ -176,7 +176,10 @@ class Phase13TestCase(unittest.TestCase):
                          html)
         self.assertIn('break-all', html)
         self.assertIn('<colgroup>', html)
-        self.assertIn('justify-end gap-2', html)
+        # v9.2: the "justify-end gap-2" wrapper is gone with the
+        # "Use This Camera" button — the Actions column holds only
+        # Delete now, so no flex wrapper is needed.
+        self.assertNotIn('Use This Camera', html)
         self.assertIn('Front Wall Cam', html)
         self.assertIn('Laptop Webcam', html)
         self.assertIn('http://10.102.161.151:8080/video', html)

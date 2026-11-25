@@ -277,7 +277,11 @@ class Phase11TestCase(unittest.TestCase):
         self.assertNotIn('action="/students/enroll"', html)
         self.assertNotIn('action="/students/import"', html)
         self.assertIn('captureModal', html)
-        self.assertIn('Bulk Face Enrolment', html)
+        # v9.2: bulk face enrolment moved to the Students page — the
+        # class page links to no bulk-photos route any more.
+        self.assertNotIn('bulk-photos', html)
+        students_html = self.client.get('/students/').get_data(as_text=True)
+        self.assertIn('Bulk Face Enrolment', students_html)
         self.assertIn('iba-scroll-list', html)
 
     def test_delete_class_removes_only_its_students(self):
@@ -324,6 +328,9 @@ class Phase11TestCase(unittest.TestCase):
             Student.query.filter(Student.class_group_id.is_(None)).count(), 0)
 
     # -- Bulk face enrolment ---------------------------------------------------
+    # v9.2: bulk enrolment moved off the class page onto the Students
+    # page — the ZIP is posted with the class picked on the form, and
+    # the results render on the Students page. Same behaviour, new route.
     def test_bulk_photos_enrols_good_student_and_reports_bad_ones(self):
         self._login_teacher()
         group = self._make_class(section='Section B')
@@ -342,10 +349,11 @@ class Phase11TestCase(unittest.TestCase):
             # Missing Photo student: only the front photo is in the ZIP.
             zf.writestr('023-24-0002_front.jpg', img)
         buf.seek(0)
-        token = self._csrf_token(f'/students/class/{group.id}')
+        token = self._csrf_token('/students/')
         resp = self.client.post(
-            f'/students/class/{group.id}/bulk-photos',
-            data={'zip_file': (buf, 'photos.zip'), 'csrf_token': token},
+            '/students/bulk-photos',
+            data={'class_group_id': str(group.id),
+                  'zip_file': (buf, 'photos.zip'), 'csrf_token': token},
             follow_redirects=True, content_type='multipart/form-data')
         self.assertEqual(resp.status_code, 200)
         html = resp.get_data(as_text=True)
