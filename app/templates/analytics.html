@@ -15,7 +15,7 @@
             <div class="grid grid-cols-1 md:grid-cols-5 gap-3 text-xs">
                 <div>
                     <label class="block font-semibold text-slate-600 mb-1">Select Course</label>
-                    <select name="course" class="w-full border border-slate-300 rounded-lg p-2 focus:ring-2 focus:ring-iba-blue bg-white">
+                    <select name="course" class="w-full border border-slate-300 p-2 focus:ring-2 focus:ring-iba-blue bg-white">
                         <option value="">All Courses</option>
                         {% for c in courses %}
                         <option value="{{ c }}" {% if selected_course == c %}selected{% endif %}>{{ c }}</option>
@@ -24,7 +24,7 @@
                 </div>
                 <div>
                     <label class="block font-semibold text-slate-600 mb-1">Select Section</label>
-                    <select name="section" class="w-full border border-slate-300 rounded-lg p-2 focus:ring-2 focus:ring-iba-blue bg-white">
+                    <select name="section" class="w-full border border-slate-300 p-2 focus:ring-2 focus:ring-iba-blue bg-white">
                         <option value="">All Sections</option>
                         {% for sec in sections %}
                         <option value="{{ sec }}" {% if selected_section == sec %}selected{% endif %}>{{ sec }}</option>
@@ -37,7 +37,7 @@
                 </div>
                 <div>
                     <label class="block font-semibold text-slate-600 mb-1">Student</label>
-                    <select name="student_id" class="w-full border border-slate-300 rounded-lg p-2 focus:ring-2 focus:ring-iba-blue bg-white">
+                    <select name="student_id" class="w-full border border-slate-300 p-2 focus:ring-2 focus:ring-iba-blue bg-white">
                         <option value="">All Students</option>
                         {% for s in students %}
                         <option value="{{ s.id }}" {% if selected_student_id == s.id|string %}selected{% endif %}>{{ s.name }} ({{ s.roll_number }})</option>
@@ -222,7 +222,7 @@
     <div class="bg-white rounded-2xl border border-slate-200 shadow-sm overflow-hidden no-print">
         <div class="p-4 border-b border-slate-100 bg-slate-50">
             <h3 class="font-bold text-sm text-slate-900">Correct a record (manual override)</h3>
-            <p class="text-xs text-slate-500 mt-1">Fix a wrongly marked student: choose the status, correct the minutes, and give a reason. The change is logged.</p>
+            <p class="text-xs text-slate-500 mt-1">Fix a wrongly marked student: choose the status, correct the minutes, and optionally give a reason. The change is logged.</p>
         </div>
         <div class="overflow-x-auto">
             <table class="w-full text-left text-xs">
@@ -243,16 +243,25 @@
                         <td class="p-3.5 text-slate-600">{{ rec.session.course_name if rec.session else '-' }}</td>
                         <td class="p-3.5">{{ rec.status }} · {{ rec.minutes_present }} min · {{ rec.attendance_percentage }}%</td>
                         <td class="p-3.5">
-                            <form action="{{ url_for('analytics.correct_record', record_id=rec.id) }}" method="POST" class="flex flex-wrap items-center gap-1.5">
+                            <form action="{{ url_for('analytics.correct_record', record_id=rec.id) }}" method="POST" class="flex flex-wrap items-end gap-1.5">
                                 <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
-                                <select name="status" class="border border-slate-300 rounded-lg px-2 py-1.5 bg-white">
-                                    <option value="Present" {% if rec.status == 'Present' %}selected{% endif %}>Present</option>
-                                    <option value="Late" {% if rec.status == 'Late' %}selected{% endif %}>Late</option>
-                                    <option value="Left Early" {% if rec.status == 'Left Early' %}selected{% endif %}>Left Early</option>
-                                    <option value="Absent" {% if rec.status == 'Absent' %}selected{% endif %}>Absent</option>
-                                </select>
-                                <input type="number" name="minutes_present" value="{{ rec.minutes_present }}" min="0" step="1" class="w-20 border border-slate-300 rounded-lg px-2 py-1.5" title="Minutes present">
-                                <input type="text" name="reason" required placeholder="Reason (required)" class="w-40 border border-slate-300 rounded-lg px-2 py-1.5">
+                                <div>
+                                    <label class="block text-[10px] font-semibold text-slate-500 mb-0.5">Status</label>
+                                    <select name="status" class="border border-slate-300 px-2 py-1.5 bg-white">
+                                        <option value="Present" {% if rec.status == 'Present' %}selected{% endif %}>Present</option>
+                                        <option value="Late" {% if rec.status == 'Late' %}selected{% endif %}>Late</option>
+                                        <option value="Left Early" {% if rec.status == 'Left Early' %}selected{% endif %}>Left Early</option>
+                                        <option value="Absent" {% if rec.status == 'Absent' %}selected{% endif %}>Absent</option>
+                                    </select>
+                                </div>
+                                <div>
+                                    <label class="block text-[10px] font-semibold text-slate-500 mb-0.5">Minutes present</label>
+                                    <input type="number" name="minutes_present" value="{{ rec.minutes_present }}" min="0" step="1" class="w-20 border border-slate-300 rounded-lg px-2 py-1.5" title="How many minutes of the class the student was present">
+                                </div>
+                                <div>
+                                    <label class="block text-[10px] font-semibold text-slate-500 mb-0.5">Reason (optional)</label>
+                                    <input type="text" name="reason" placeholder="Reason (optional)" class="w-40 border border-slate-300 rounded-lg px-2 py-1.5">
+                                </div>
                                 <button type="submit" class="btn btn-primary btn-sm">Save correction</button>
                             </form>
                         </td>

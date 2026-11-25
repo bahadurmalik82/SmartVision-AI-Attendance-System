@@ -444,9 +444,10 @@ def email_transcript_selected():
 def correct_record(record_id):
     """Manually correct one attendance record.
 
-    The teacher changes the status and minutes present and MUST give a
-    reason. The record is marked as a manual override and the change is
-    written to the audit log.
+    The teacher changes the status and minutes present; a reason is
+    optional (v9.2 — the teacher's choice whether to add one). The
+    record is marked as a manual override and the change is written
+    to the audit log.
     """
     record = AttendanceRecord.query.get_or_404(record_id)
     # The record must belong to one of my students.
@@ -467,9 +468,6 @@ def correct_record(record_id):
         return redirect(url_for('analytics.index'))
     if minutes is None or minutes < 0:
         flash('Minutes present must be a number (0 or more).', 'danger')
-        return redirect(url_for('analytics.index'))
-    if not reason:
-        flash('A reason is required for a manual correction.', 'danger')
         return redirect(url_for('analytics.index'))
 
     total = record.session.total_duration_minutes if record.session else 0
@@ -494,7 +492,8 @@ def correct_record(record_id):
         pass
     log_action('attendance_correct',
                f'{record.student.roll_number} record #{record.id}: '
-               f'{status}, {minutes} min — {reason}')
+               f'{status}, {minutes} min'
+               + (f' — {reason}' if reason else ''))
     flash(f"Record corrected for {record.student.name} "
           f"({record.student.roll_number}): {status}, {minutes} min.",
           'success')
