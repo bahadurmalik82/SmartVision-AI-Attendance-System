@@ -112,15 +112,23 @@
                 <h3 class="font-bold text-xs uppercase tracking-wider text-slate-600">Students in this class</h3>
                 <span class="text-xs text-slate-500 font-semibold">{{ pagination.total }} Students</span>
             </div>
+            <!-- v9.1: the search box filters the shown students live
+                 as you type (name, roll no, CMS ID, email, password);
+                 Search still runs the server search across the whole
+                 class, and Clear resets it. -->
             <form method="get" action="{{ url_for('students.class_detail', class_id=group.id) }}" class="flex gap-2">
-                <input type="text" name="q" value="{{ q }}" placeholder="Search roll number or name..." class="flex-grow px-3 py-2 border rounded-lg text-sm focus:ring-2 focus:ring-iba-blue">
+                <div class="relative flex-grow">
+                    <i class="fa-solid fa-magnifying-glass absolute left-3 top-1/2 -translate-y-1/2 text-slate-400 text-xs"></i>
+                    <input type="text" name="q" value="{{ q }}" data-iba-search="ibaClassTable" placeholder="Search name, roll no, CMS ID, email or password..." class="w-full pl-8 pr-8 px-3 py-2 border rounded-lg text-sm focus:ring-2 focus:ring-iba-blue">
+                    <button type="button" data-iba-search-clear="ibaClassTable" class="absolute right-2 top-1/2 -translate-y-1/2 text-slate-400 hover:text-slate-700 text-sm hidden" title="Clear search" aria-label="Clear search"><i class="fa-solid fa-xmark"></i></button>
+                </div>
                 <button type="submit" class="btn btn-primary btn-sm">Search</button>
                 {% if q %}<a href="{{ url_for('students.class_detail', class_id=group.id) }}" class="btn btn-secondary btn-sm">Clear</a>{% endif %}
             </form>
         </div>
 
         <div class="iba-scroll-list">
-            <table class="w-full text-left text-xs iba-roster-table">
+            <table id="ibaClassTable" class="w-full text-left text-xs iba-roster-table">
                 <thead class="bg-slate-100/70 text-slate-600 uppercase font-semibold">
                     <tr>
                         <th class="p-3.5 w-[16%]">Roll No</th>
@@ -133,7 +141,7 @@
                 </thead>
                 <tbody class="divide-y divide-slate-100">
                     {% for s in students %}
-                    <tr class="hover:bg-slate-50/80 transition">
+                    <tr class="hover:bg-slate-50/80 transition" data-iba-search="{{ s.roll_number }} {{ s.name }} {{ s.cms_id or '' }} {{ s.email or '' }} {{ s.portal_password_plain or '' }}">
                         <td class="p-3.5 font-bold text-iba-blue font-mono">{{ s.roll_number }}</td>
                         <td class="p-3.5 font-semibold text-slate-900">{{ s.name }}</td>
                         <td class="p-3.5 font-mono font-bold text-iba-blue">{{ s.cms_id or '—' }}</td>
@@ -186,6 +194,9 @@
                         </td>
                     </tr>
                     {% endfor %}
+                    <tr data-iba-search-empty="ibaClassTable" style="display: none;">
+                        <td colspan="6" class="p-8 text-center text-slate-400">No students match your search.</td>
+                    </tr>
                 </tbody>
             </table>
         </div>
@@ -203,4 +214,8 @@
     </div>
 </div>
 
+{% endblock %}
+
+{% block scripts %}
+<script src="{{ url_for('static', filename='js/iba-student-lists.js') }}"></script>
 {% endblock %}
