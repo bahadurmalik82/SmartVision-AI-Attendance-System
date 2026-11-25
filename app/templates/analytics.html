@@ -54,6 +54,44 @@
         </form>
     </div>
 
+    <!-- v9.3: global search — one search across ALL classes. The
+         filters above scope the results (a course/date filter only
+         returns students who have a record in that slice), and the
+         filter values are carried along on the class-card buttons
+         below, so a per-class page opens with the same scope. -->
+    <div class="bg-white p-5 rounded-2xl border border-slate-200 shadow-sm">
+        <h2 class="text-sm font-bold text-slate-900 mb-1">Search any student</h2>
+        <p class="text-xs text-slate-500 mb-3">Search by name, roll no, CMS ID or email — the student shows up no matter which class they are enrolled in.</p>
+        <form method="get" action="{{ url_for('analytics.index') }}" class="flex flex-col sm:flex-row gap-2">
+            <input type="hidden" name="course" value="{{ selected_course }}">
+            <input type="hidden" name="section" value="{{ selected_section }}">
+            <input type="hidden" name="date" value="{{ selected_date }}">
+            <input type="hidden" name="student_id" value="{{ selected_student_id }}">
+            <div class="relative flex-1">
+                <i class="fa-solid fa-magnifying-glass absolute left-3 top-1/2 -translate-y-1/2 text-slate-400 text-xs"></i>
+                <input type="text" name="q" value="{{ q }}" placeholder="Search name, roll no, CMS ID or email..." class="w-full pl-8 pr-3 py-2 border border-slate-300 rounded-lg text-sm focus:ring-2 focus:ring-iba-blue" aria-label="Search any student">
+            </div>
+            <button type="submit" class="btn btn-primary"><i class="fa-solid fa-magnifying-glass mr-1"></i> Search</button>
+            {% if q %}
+            <a href="{{ url_for('analytics.index', course=selected_course, section=selected_section, date=selected_date, student_id=selected_student_id) }}" class="btn btn-secondary">Clear search</a>
+            {% endif %}
+        </form>
+    </div>
+
+    {% if q %}
+    <!-- Global search results: same columns as the records table,
+         plus a Class column; each name links to its class's
+         records page. -->
+    <div>
+        <h2 class="text-sm font-bold text-slate-900 mb-3">Search results for "{{ q }}" ({{ search_results|length }} found)</h2>
+        {% set rows = search_results %}
+        {% set total_students = search_results|length %}
+        {% set show_class = true %}
+        {% set table_id = 'ibaAnalyticsSearchTable' %}
+        {% include '_records_table.html' with context %}
+    </div>
+    {% endif %}
+
     <!-- v8: never silently drop students. When the filter hides anyone
          from the full roster, say so here — who, and why. -->
     {% if hidden_students %}
@@ -65,215 +103,29 @@
     </div>
     {% endif %}
 
-    <!-- K-Means Clustering Section (v5: visual, not a long name list) -->
-    <div id="clusters" class="bg-white rounded-2xl border border-slate-200 shadow-sm overflow-hidden">
-        <div class="p-4 border-b border-slate-100 bg-slate-50">
-            <h3 class="font-bold text-sm text-slate-900">K-Means student clustering (k = 3)</h3>
-            {% if clusters.clusters %}
-            <p class="text-xs text-slate-500 mt-1">{{ clusters.note }} Method: {{ clusters.method }}.</p>
-            {% endif %}
-            {% if rows and (rows|sum(attribute='total_classes')) == 0 %}
-            <p class="text-xs mt-2 bg-amber-50 border border-amber-200 text-amber-600 rounded-lg px-3 py-2">
-                <i class="fa-solid fa-triangle-exclamation mr-1"></i> <strong>No class has run yet.</strong>
-                Every student is at 0% only because there are no attendance records — nobody has actually been absent.
-                These groups will become real after the first class runs.
-            </p>
-            {% endif %}
-        </div>
-
-        {% if clusters.clusters %}
-        {% set shown_count = clusters.assignments|length %}
-        <!-- Distribution bar: how the class splits across the 3 groups -->
-        <div class="px-4 pt-4">
-            <p class="text-xs font-semibold text-slate-600 mb-2">How the class splits — {{ shown_count }} of {{ total_students }} student(s)</p>
-            <div class="flex h-4 rounded-full overflow-hidden border border-slate-200" role="img" aria-label="Cluster distribution">
-                {% for cid, c in clusters.clusters.items() %}
-                <div title="{{ c.label }}: {{ c.count }} student(s)" style="width: {{ (c.count / shown_count * 100)|round(1) }}%; background: {% if cid == 0 %}#059669{% elif cid == 1 %}#d97706{% else %}#e11d48{% endif %};"></div>
-                {% endfor %}
-            </div>
-            <div class="flex flex-wrap gap-4 mt-2 text-xs text-slate-600">
-                {% for cid, c in clusters.clusters.items() %}
-                <span><span class="inline-block w-2.5 h-2.5 rounded-full align-middle" style="background: {% if cid == 0 %}#059669{% elif cid == 1 %}#d97706{% else %}#e11d48{% endif %};"></span> {{ c.label }} — {{ c.count }} ({{ (c.count / shown_count * 100)|round(0) }}%)</span>
-                {% endfor %}
-            </div>
-        </div>
-
-        <!-- Cluster cards: count, average, bar, first members only -->
-        <div class="p-4 grid grid-cols-1 md:grid-cols-3 gap-3 text-xs">
-            {% for cid, c in clusters.clusters.items() %}
-            <div class="border rounded-xl p-4 {% if cid == 0 %}border-emerald-200 bg-emerald-50{% elif cid == 1 %}border-amber-200 bg-amber-50{% else %}border-rose-200 bg-rose-50{% endif %}">
-                <p class="font-bold text-sm">
-                    {% if cid == 0 %}<i class="fa-solid fa-star text-emerald-600 mr-1"></i>{% elif cid == 1 %}<i class="fa-solid fa-arrows-rotate text-amber-600 mr-1"></i>{% else %}<i class="fa-solid fa-triangle-exclamation text-rose-600 mr-1"></i>{% endif %}
-                    Cluster {{ cid }} — {{ c.label }}
-                </p>
-                <p class="text-slate-600 mt-1">{{ c.description }}</p>
-                <p class="mt-3"><span class="text-2xl font-black {% if cid == 0 %}text-emerald-600{% elif cid == 1 %}text-amber-600{% else %}text-rose-600{% endif %}">{{ c.count }}</span> <span class="text-slate-600">student(s) &middot; avg {{ c.avg_attendance }}%</span></p>
-                <div class="h-2.5 rounded-full bg-white border border-slate-200 overflow-hidden mt-2">
-                    <div class="h-full" style="width: {{ c.avg_attendance }}%; background: {% if cid == 0 %}#059669{% elif cid == 1 %}#d97706{% else %}#e11d48{% endif %};"></div>
-                </div>
-                <p class="text-slate-600 mt-2">Average attendance: {{ c.avg_attendance }}%</p>
-                <details class="mt-2">
-                    <summary class="cursor-pointer font-semibold text-iba-blue">Who is in this group? ({{ c.count }})</summary>
-                    <p class="text-slate-600 mt-1 leading-relaxed">{{ c.members|join(', ') }}</p>
-                </details>
-            </div>
+    <!-- v9.3: class cards — the records and correct lists moved to
+         per-class pages so this page stays short even with 1000s
+         of students in different classes. -->
+    <div>
+        <h2 class="text-sm font-bold text-slate-900 mb-3">Classes ({{ classes|length }})</h2>
+        {% if classes %}
+        <div class="grid grid-cols-1 md:grid-cols-2 xl:grid-cols-3 gap-4">
+            {% for g in classes %}
+            {% include '_analytics_class_card.html' %}
             {% endfor %}
         </div>
-
-        <!-- Scatter plot: attendance % (across) vs lateness (up) -->
-        {% if clusters.scatter %}
-        <div class="px-4 pb-4">
-            <p class="font-semibold text-xs text-slate-700 mb-1">Where every student sits — attendance % vs lateness</p>
-            <p class="text-xs text-slate-500 mb-2">Each dot is one student. Further right = better attendance. Higher = later on average. The gold line is the {{ threshold }}% eligibility line.</p>
-            <div class="relative border border-slate-200 rounded-xl bg-slate-50 overflow-hidden" style="height: 240px;" role="img" aria-label="Scatter plot of attendance versus lateness">
-                <!-- 75% eligibility line -->
-                <div class="absolute top-0 bottom-0 border-l-2 border-dashed border-iba-gold" style="left: {{ threshold }}%;"></div>
-                <span class="absolute top-1 text-xs font-bold text-amber-600" style="left: calc({{ threshold }}% + 4px);">{{ threshold }}% line</span>
-                <!-- 90% star line -->
-                <div class="absolute top-0 bottom-0 border-l border-dashed border-emerald-400" style="left: 90%;"></div>
-                {% for p in clusters.scatter %}
-                <span title="{{ p.name }} ({{ p.roll_number }}): {{ p.x }}% attendance, {{ p.y }} min late — Cluster {{ p.cluster }}"
-                      class="absolute w-3.5 h-3.5 rounded-full border-2 border-white shadow"
-                      style="left: calc({{ p.x }}% - 7px); bottom: calc({{ (p.y / clusters.max_lateness * 100)|round(1) }}% - 7px); background: {% if p.cluster == 0 %}#059669{% elif p.cluster == 1 %}#d97706{% else %}#e11d48{% endif %};"></span>
-                {% endfor %}
-                <span class="absolute bottom-1 left-2 text-xs text-slate-400">0%</span>
-                <span class="absolute bottom-1 right-2 text-xs text-slate-400">100% attendance</span>
-                <span class="absolute top-1 left-2 text-xs text-slate-400">later &uarr;</span>
-            </div>
-            {% if clusters.elbow %}
-            <p class="text-xs text-slate-500 mt-2">Why k = 3? Elbow check (lower inertia = tighter groups):
-                {% for e in clusters.elbow %}<span class="font-mono">k={{ e.k }}: {{ e.inertia }}</span>{% if not loop.last %} &middot; {% endif %}{% endfor %}
-            </p>
-            {% endif %}
-        </div>
-        {% endif %}
         {% else %}
-        <p class="p-4 text-slate-400 text-xs">No clustering data yet — enrol students and run a class first.</p>
+        <div class="bg-white rounded-2xl border border-slate-200 shadow-sm p-6 text-center text-xs text-slate-400">
+            No classes yet — create one on the Students page, then enrol students into it.
+        </div>
         {% endif %}
     </div>
 
-    <!-- Search Results / Directory Table -->
-    <div class="bg-white rounded-2xl border border-slate-200 shadow-sm overflow-hidden">
-        <div class="p-4 border-b border-slate-100 flex justify-between items-center bg-slate-50">
-            <h3 class="font-bold text-sm text-slate-900">Student attendance records ({{ rows|length }} of {{ total_students }} shown)</h3>
-            <div class="flex gap-2 no-print">
-                <button type="button" onclick="window.print()" class="btn btn-secondary"><i class="fa-solid fa-print mr-1"></i> Print report</button>
-                <a href="{{ url_for('analytics.export_excel', course=selected_course, section=selected_section, date=selected_date, student_id=selected_student_id) }}" class="btn btn-primary">
-                    <i class="fa-solid fa-file-excel mr-1"></i> Export Excel Report
-                </a>
-            </div>
-        </div>
-        <!-- v9.1: live search — filters only the rows the current
-             course/date filters already show; no page reload. -->
-        <div class="p-4 border-b border-slate-100">
-            <div class="relative max-w-md">
-                <i class="fa-solid fa-magnifying-glass absolute left-3 top-1/2 -translate-y-1/2 text-slate-400 text-xs"></i>
-                <input type="text" data-iba-search="ibaAnalyticsTable" placeholder="Search name, roll no, CMS ID, email or password..." class="w-full pl-8 pr-8 py-2 border border-slate-300 rounded-lg text-sm focus:ring-2 focus:ring-iba-blue" aria-label="Search students">
-                <button type="button" data-iba-search-clear="ibaAnalyticsTable" class="absolute right-2 top-1/2 -translate-y-1/2 text-slate-400 hover:text-slate-700 text-sm hidden" title="Clear search" aria-label="Clear search"><i class="fa-solid fa-xmark"></i></button>
-            </div>
-        </div>
-        <div class="overflow-x-auto">
-            <table id="ibaAnalyticsTable" class="w-full text-left text-xs">
-                <thead class="bg-slate-100/70 text-slate-600 uppercase font-semibold">
-                    <tr>
-                        <th class="p-3.5">Roll No</th>
-                        <th class="p-3.5">Student Name</th>
-                        <th class="p-3.5">Section</th>
-                        <th class="p-3.5">Total Lectures</th>
-                        <th class="p-3.5">Aggregate Attendance</th>
-                        <th class="p-3.5">Status</th>
-                    </tr>
-                </thead>
-                <tbody class="divide-y divide-slate-100">
-                    {% for r in rows %}
-                    <tr class="hover:bg-slate-50/80 transition" data-iba-search="{{ r.student.roll_number }} {{ r.student.name }} {{ r.student.cms_id or '' }} {{ r.student.email or '' }} {{ r.student.portal_password_plain or '' }}">
-                        <td class="p-3.5 font-bold text-iba-blue">{{ r.student.roll_number }}</td>
-                        <td class="p-3.5 font-semibold text-slate-900">{{ r.student.name }}</td>
-                        <td class="p-3.5 text-slate-600">{{ r.student.section }}</td>
-                        <td class="p-3.5 text-slate-600">{{ r.total_classes }}</td>
-                        <td class="p-3.5 font-bold text-emerald-600">{{ r.avg_percentage }}%</td>
-                        <td class="p-3.5">
-                            {% if r.avg_percentage >= threshold %}
-                            <span class="bg-emerald-50 text-emerald-600 border border-emerald-200 px-2 py-0.5 rounded text-xs font-medium">Eligible</span>
-                            {% elif r.avg_percentage >= threshold - 5 %}
-                            <span class="bg-slate-100 text-slate-700 border border-slate-200 px-2 py-0.5 rounded text-xs font-medium">Warning (below threshold)</span>
-                            {% else %}
-                            <span class="bg-rose-50 text-rose-600 border border-rose-200 px-2 py-0.5 rounded text-xs font-medium">Barred (below warning band)</span>
-                            {% endif %}
-                        </td>
-                    </tr>
-                    {% else %}
-                    <tr>
-                        <td colspan="6" class="p-6 text-center text-slate-400">
-                            No student records found for these filters.
-                        </td>
-                    </tr>
-                    {% endfor %}
-                    <tr data-iba-search-empty="ibaAnalyticsTable" style="display: none;">
-                        <td colspan="6" class="p-6 text-center text-slate-400">No students match your search.</td>
-                    </tr>
-                </tbody>
-            </table>
-        </div>
-    </div>
+    <!-- K-Means Clustering Section (v5: visual, not a long name list)
+         — v9.3: moved to the very bottom; the computation is exactly
+         as before (it still respects the filters above). -->
+    {% include '_analytics_clusters.html' %}
 </div>
-
-    <!-- Manual Attendance Correction -->
-    <div class="bg-white rounded-2xl border border-slate-200 shadow-sm overflow-hidden no-print">
-        <div class="p-4 border-b border-slate-100 bg-slate-50">
-            <h3 class="font-bold text-sm text-slate-900">Correct a record (manual override)</h3>
-            <p class="text-xs text-slate-500 mt-1">Fix a wrongly marked student: choose the status, correct the minutes, and optionally give a reason. The change is logged.</p>
-        </div>
-        <div class="overflow-x-auto">
-            <table class="w-full text-left text-xs">
-                <thead class="bg-slate-100/70 text-slate-600 uppercase font-semibold">
-                    <tr>
-                        <th class="p-3.5">Date</th>
-                        <th class="p-3.5">Student</th>
-                        <th class="p-3.5">Course</th>
-                        <th class="p-3.5">Now</th>
-                        <th class="p-3.5">Correct to</th>
-                    </tr>
-                </thead>
-                <tbody class="divide-y divide-slate-100">
-                    {% for rec in recent_records %}
-                    <tr class="hover:bg-slate-50/80 transition">
-                        <td class="p-3.5">{{ rec.session.session_date if rec.session else '-' }}</td>
-                        <td class="p-3.5 font-semibold text-slate-900">{{ rec.student.name }} <span class="text-slate-500 font-normal">({{ rec.student.roll_number }})</span>{% if rec.manual_override %} <span class="text-iba-gold font-bold">· corrected</span>{% endif %}</td>
-                        <td class="p-3.5 text-slate-600">{{ rec.session.course_name if rec.session else '-' }}</td>
-                        <td class="p-3.5">{{ rec.status }} · {{ rec.minutes_present }} min · {{ rec.attendance_percentage }}%</td>
-                        <td class="p-3.5">
-                            <form action="{{ url_for('analytics.correct_record', record_id=rec.id) }}" method="POST" class="flex flex-wrap items-end gap-1.5">
-                                <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
-                                <div>
-                                    <label class="block text-[10px] font-semibold text-slate-500 mb-0.5">Status</label>
-                                    <select name="status" class="border border-slate-300 px-2 py-1.5 bg-white">
-                                        <option value="Present" {% if rec.status == 'Present' %}selected{% endif %}>Present</option>
-                                        <option value="Late" {% if rec.status == 'Late' %}selected{% endif %}>Late</option>
-                                        <option value="Left Early" {% if rec.status == 'Left Early' %}selected{% endif %}>Left Early</option>
-                                        <option value="Absent" {% if rec.status == 'Absent' %}selected{% endif %}>Absent</option>
-                                    </select>
-                                </div>
-                                <div>
-                                    <label class="block text-[10px] font-semibold text-slate-500 mb-0.5">Minutes present</label>
-                                    <input type="number" name="minutes_present" value="{{ rec.minutes_present }}" min="0" step="1" class="w-20 border border-slate-300 rounded-lg px-2 py-1.5" title="How many minutes of the class the student was present">
-                                </div>
-                                <div>
-                                    <label class="block text-[10px] font-semibold text-slate-500 mb-0.5">Reason (optional)</label>
-                                    <input type="text" name="reason" placeholder="Reason (optional)" class="w-40 border border-slate-300 rounded-lg px-2 py-1.5">
-                                </div>
-                                <button type="submit" class="btn btn-primary btn-sm">Save correction</button>
-                            </form>
-                        </td>
-                    </tr>
-                    {% else %}
-                    <tr><td colspan="5" class="p-6 text-center text-slate-400">No attendance records yet — run a class first.</td></tr>
-                    {% endfor %}
-                </tbody>
-            </table>
-        </div>
-    </div>
-
 {% endblock %}
 
 {% block scripts %}

@@ -1,0 +1,86 @@
+    <!-- K-Means Clustering Section (v5: visual, not a long name list) -->
+    <div id="clusters" class="bg-white rounded-2xl border border-slate-200 shadow-sm overflow-hidden">
+        <div class="p-4 border-b border-slate-100 bg-slate-50">
+            <h3 class="font-bold text-sm text-slate-900">K-Means student clustering (k = 3)</h3>
+            {% if clusters.clusters %}
+            <p class="text-xs text-slate-500 mt-1">{{ clusters.note }} Method: {{ clusters.method }}.</p>
+            {% endif %}
+            {% if rows and (rows|sum(attribute='total_classes')) == 0 %}
+            <p class="text-xs mt-2 bg-amber-50 border border-amber-200 text-amber-600 rounded-lg px-3 py-2">
+                <i class="fa-solid fa-triangle-exclamation mr-1"></i> <strong>No class has run yet.</strong>
+                Every student is at 0% only because there are no attendance records — nobody has actually been absent.
+                These groups will become real after the first class runs.
+            </p>
+            {% endif %}
+        </div>
+
+        {% if clusters.clusters %}
+        {% set shown_count = clusters.assignments|length %}
+        <!-- Distribution bar: how the class splits across the 3 groups -->
+        <div class="px-4 pt-4">
+            <p class="text-xs font-semibold text-slate-600 mb-2">How the class splits — {{ shown_count }} of {{ total_students }} student(s)</p>
+            <div class="flex h-4 rounded-full overflow-hidden border border-slate-200" role="img" aria-label="Cluster distribution">
+                {% for cid, c in clusters.clusters.items() %}
+                <div title="{{ c.label }}: {{ c.count }} student(s)" style="width: {{ (c.count / shown_count * 100)|round(1) }}%; background: {% if cid == 0 %}#059669{% elif cid == 1 %}#d97706{% else %}#e11d48{% endif %};"></div>
+                {% endfor %}
+            </div>
+            <div class="flex flex-wrap gap-4 mt-2 text-xs text-slate-600">
+                {% for cid, c in clusters.clusters.items() %}
+                <span><span class="inline-block w-2.5 h-2.5 rounded-full align-middle" style="background: {% if cid == 0 %}#059669{% elif cid == 1 %}#d97706{% else %}#e11d48{% endif %};"></span> {{ c.label }} — {{ c.count }} ({{ (c.count / shown_count * 100)|round(0) }}%)</span>
+                {% endfor %}
+            </div>
+        </div>
+
+        <!-- Cluster cards: count, average, bar, first members only -->
+        <div class="p-4 grid grid-cols-1 md:grid-cols-3 gap-3 text-xs">
+            {% for cid, c in clusters.clusters.items() %}
+            <div class="border rounded-xl p-4 {% if cid == 0 %}border-emerald-200 bg-emerald-50{% elif cid == 1 %}border-amber-200 bg-amber-50{% else %}border-rose-200 bg-rose-50{% endif %}">
+                <p class="font-bold text-sm">
+                    {% if cid == 0 %}<i class="fa-solid fa-star text-emerald-600 mr-1"></i>{% elif cid == 1 %}<i class="fa-solid fa-arrows-rotate text-amber-600 mr-1"></i>{% else %}<i class="fa-solid fa-triangle-exclamation text-rose-600 mr-1"></i>{% endif %}
+                    Cluster {{ cid }} — {{ c.label }}
+                </p>
+                <p class="text-slate-600 mt-1">{{ c.description }}</p>
+                <p class="mt-3"><span class="text-2xl font-black {% if cid == 0 %}text-emerald-600{% elif cid == 1 %}text-amber-600{% else %}text-rose-600{% endif %}">{{ c.count }}</span> <span class="text-slate-600">student(s) &middot; avg {{ c.avg_attendance }}%</span></p>
+                <div class="h-2.5 rounded-full bg-white border border-slate-200 overflow-hidden mt-2">
+                    <div class="h-full" style="width: {{ c.avg_attendance }}%; background: {% if cid == 0 %}#059669{% elif cid == 1 %}#d97706{% else %}#e11d48{% endif %};"></div>
+                </div>
+                <p class="text-slate-600 mt-2">Average attendance: {{ c.avg_attendance }}%</p>
+                <details class="mt-2">
+                    <summary class="cursor-pointer font-semibold text-iba-blue">Who is in this group? ({{ c.count }})</summary>
+                    <p class="text-slate-600 mt-1 leading-relaxed">{{ c.members|join(', ') }}</p>
+                </details>
+            </div>
+            {% endfor %}
+        </div>
+
+        <!-- Scatter plot: attendance % (across) vs lateness (up) -->
+        {% if clusters.scatter %}
+        <div class="px-4 pb-4">
+            <p class="font-semibold text-xs text-slate-700 mb-1">Where every student sits — attendance % vs lateness</p>
+            <p class="text-xs text-slate-500 mb-2">Each dot is one student. Further right = better attendance. Higher = later on average. The gold line is the {{ threshold }}% eligibility line.</p>
+            <div class="relative border border-slate-200 rounded-xl bg-slate-50 overflow-hidden" style="height: 240px;" role="img" aria-label="Scatter plot of attendance versus lateness">
+                <!-- 75% eligibility line -->
+                <div class="absolute top-0 bottom-0 border-l-2 border-dashed border-iba-gold" style="left: {{ threshold }}%;"></div>
+                <span class="absolute top-1 text-xs font-bold text-amber-600" style="left: calc({{ threshold }}% + 4px);">{{ threshold }}% line</span>
+                <!-- 90% star line -->
+                <div class="absolute top-0 bottom-0 border-l border-dashed border-emerald-400" style="left: 90%;"></div>
+                {% for p in clusters.scatter %}
+                <span title="{{ p.name }} ({{ p.roll_number }}): {{ p.x }}% attendance, {{ p.y }} min late — Cluster {{ p.cluster }}"
+                      class="absolute w-3.5 h-3.5 rounded-full border-2 border-white shadow"
+                      style="left: calc({{ p.x }}% - 7px); bottom: calc({{ (p.y / clusters.max_lateness * 100)|round(1) }}% - 7px); background: {% if p.cluster == 0 %}#059669{% elif p.cluster == 1 %}#d97706{% else %}#e11d48{% endif %};"></span>
+                {% endfor %}
+                <span class="absolute bottom-1 left-2 text-xs text-slate-400">0%</span>
+                <span class="absolute bottom-1 right-2 text-xs text-slate-400">100% attendance</span>
+                <span class="absolute top-1 left-2 text-xs text-slate-400">later &uarr;</span>
+            </div>
+            {% if clusters.elbow %}
+            <p class="text-xs text-slate-500 mt-2">Why k = 3? Elbow check (lower inertia = tighter groups):
+                {% for e in clusters.elbow %}<span class="font-mono">k={{ e.k }}: {{ e.inertia }}</span>{% if not loop.last %} &middot; {% endif %}{% endfor %}
+            </p>
+            {% endif %}
+        </div>
+        {% endif %}
+        {% else %}
+        <p class="p-4 text-slate-400 text-xs">No clustering data yet — enrol students and run a class first.</p>
+        {% endif %}
+    </div>

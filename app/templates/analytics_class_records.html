@@ -1,0 +1,56 @@
+{% extends 'base.html' %}
+{% block title %}Attendance records — {{ group.display_name() }}{% endblock %}
+
+{% block content %}
+<div class="space-y-6">
+    <div>
+        <a href="{{ url_for('analytics.index') }}" class="text-xs text-iba-blue hover:underline"><i class="fa-solid fa-arrow-left mr-1"></i> Back to Analytics</a>
+        <h1 class="text-2xl font-bold text-slate-900 mt-2">Attendance records — {{ group.name }}</h1>
+        <p class="text-xs text-slate-500 mt-1">{{ group.display_name() }}{% if group.course_name %} · {{ group.course_code or '' }} {{ group.course_name }}{% endif %} — only this class's enrolled students.</p>
+    </div>
+
+    <!-- Course/date filter, scoped to this class -->
+    <div class="bg-white p-5 rounded-2xl border border-slate-200 shadow-sm">
+        <form method="get" action="{{ url_for('analytics.class_records', class_id=group.id) }}">
+            <div class="grid grid-cols-1 md:grid-cols-3 gap-3 text-xs">
+                <div>
+                    <label class="block font-semibold text-slate-600 mb-1">Select Course</label>
+                    <select name="course" class="w-full border border-slate-300 p-2 focus:ring-2 focus:ring-iba-blue bg-white">
+                        <option value="">All Courses</option>
+                        {% for c in courses %}
+                        <option value="{{ c }}" {% if selected_course == c %}selected{% endif %}>{{ c }}</option>
+                        {% endfor %}
+                    </select>
+                </div>
+                <div>
+                    <label class="block font-semibold text-slate-600 mb-1">Filter by Date</label>
+                    <input type="date" name="date" value="{{ selected_date }}" class="w-full border border-slate-300 rounded-lg p-2 focus:ring-2 focus:ring-iba-blue">
+                </div>
+                <div class="flex items-end gap-2">
+                    <button type="submit" class="btn btn-primary w-full">
+                        <i class="fa-solid fa-filter mr-1"></i> Apply Filters
+                    </button>
+                    <a href="{{ url_for('analytics.class_records', class_id=group.id) }}" class="btn btn-secondary w-full">Clear</a>
+                </div>
+            </div>
+        </form>
+    </div>
+
+    <!-- v8: never silently drop students. When the filter hides anyone
+         from this class's roster, say so here — who, and why. -->
+    {% if hidden_students %}
+    <div class="bg-amber-50 border border-amber-200 rounded-2xl p-4 text-xs text-amber-600">
+        <strong>Showing {{ rows|length }} of {{ total_students }} students</strong> — {{ hidden_students|length }} hidden by the current filter:
+        {% for h in hidden_students %}{{ h.student.name }} ({{ h.student.roll_number }}){% if not loop.last %}, {% endif %}{% endfor %}.
+        {% if filter_hides_records %}They have no attendance record for this course/date yet.{% else %}They are outside the current filter.{% endif %}
+        <a href="{{ url_for('analytics.class_records', class_id=group.id) }}" class="font-bold underline">Clear filters</a>
+    </div>
+    {% endif %}
+
+    {% include '_records_table.html' with context %}
+</div>
+{% endblock %}
+
+{% block scripts %}
+<script src="{{ url_for('static', filename='js/iba-student-lists.js') }}"></script>
+{% endblock %}

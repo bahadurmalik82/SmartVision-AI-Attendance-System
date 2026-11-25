@@ -1,0 +1,85 @@
+{# v9.3: one student-aggregate table, shared by the per-class
+   records page and the global search results on the Analytics
+   page. Same columns as the old all-students table — Roll No,
+   Student Name, Section, Total Lectures, Aggregate Attendance,
+   Status — plus a Class column when show_class is set (global
+   search results), with the student name linking to that class's
+   records page. Expects: rows (aggregate dicts, or search_result
+   dicts with .class_name/.class_group_id when show_class),
+   total_students, threshold, table_id. #}
+<div class="bg-white rounded-2xl border border-slate-200 shadow-sm overflow-hidden">
+    <div class="p-4 border-b border-slate-100 flex justify-between items-center bg-slate-50">
+        <h3 class="font-bold text-sm text-slate-900">Student attendance records ({{ rows|length }} of {{ total_students }} shown)</h3>
+        {% if export_url is defined %}
+        <div class="flex gap-2 no-print">
+            <button type="button" onclick="window.print()" class="btn btn-secondary"><i class="fa-solid fa-print mr-1"></i> Print report</button>
+            <a href="{{ export_url }}" class="btn btn-primary">
+                <i class="fa-solid fa-file-excel mr-1"></i> Export Excel Report
+            </a>
+        </div>
+        {% endif %}
+    </div>
+    <!-- v9.1: live search — filters only the rows shown; no page reload. -->
+    <div class="p-4 border-b border-slate-100">
+        <div class="relative max-w-md">
+            <i class="fa-solid fa-magnifying-glass absolute left-3 top-1/2 -translate-y-1/2 text-slate-400 text-xs"></i>
+            <input type="text" data-iba-search="{{ table_id }}" placeholder="Search name, roll no, CMS ID, email or password..." class="w-full pl-8 pr-8 py-2 border border-slate-300 rounded-lg text-sm focus:ring-2 focus:ring-iba-blue" aria-label="Search students">
+            <button type="button" data-iba-search-clear="{{ table_id }}" class="absolute right-2 top-1/2 -translate-y-1/2 text-slate-400 hover:text-slate-700 text-sm hidden" title="Clear search" aria-label="Clear search"><i class="fa-solid fa-xmark"></i></button>
+        </div>
+    </div>
+    <div class="overflow-x-auto">
+        <table id="{{ table_id }}" class="w-full text-left text-xs">
+            <thead class="bg-slate-100/70 text-slate-600 uppercase font-semibold">
+                <tr>
+                    <th class="p-3.5">Roll No</th>
+                    <th class="p-3.5">Student Name</th>
+                    {% if show_class is defined and show_class %}
+                    <th class="p-3.5">Class</th>
+                    {% endif %}
+                    <th class="p-3.5">Section</th>
+                    <th class="p-3.5">Total Lectures</th>
+                    <th class="p-3.5">Aggregate Attendance</th>
+                    <th class="p-3.5">Status</th>
+                </tr>
+            </thead>
+            <tbody class="divide-y divide-slate-100">
+                {% for r in rows %}
+                <tr class="hover:bg-slate-50/80 transition" data-iba-search="{{ r.student.roll_number }} {{ r.student.name }} {{ r.student.cms_id or '' }} {{ r.student.email or '' }} {{ r.student.portal_password_plain or '' }}">
+                    <td class="p-3.5 font-bold text-iba-blue">{{ r.student.roll_number }}</td>
+                    <td class="p-3.5 font-semibold text-slate-900">
+                        {% if show_class is defined and show_class and r.class_group_id %}
+                        <a href="{{ url_for('analytics.class_records', class_id=r.class_group_id) }}" class="text-iba-blue hover:underline">{{ r.student.name }}</a>
+                        {% else %}
+                        {{ r.student.name }}
+                        {% endif %}
+                    </td>
+                    {% if show_class is defined and show_class %}
+                    <td class="p-3.5 text-slate-600">{{ r.class_name }}</td>
+                    {% endif %}
+                    <td class="p-3.5 text-slate-600">{{ r.student.section }}</td>
+                    <td class="p-3.5 text-slate-600">{{ r.total_classes }}</td>
+                    <td class="p-3.5 font-bold text-emerald-600">{{ r.avg_percentage }}%</td>
+                    <td class="p-3.5">
+                        {% if r.avg_percentage >= threshold %}
+                        <span class="bg-emerald-50 text-emerald-600 border border-emerald-200 px-2 py-0.5 rounded text-xs font-medium">Eligible</span>
+                        {% elif r.avg_percentage >= threshold - 5 %}
+                        <span class="bg-slate-100 text-slate-700 border border-slate-200 px-2 py-0.5 rounded text-xs font-medium">Warning (below threshold)</span>
+                        {% else %}
+                        <span class="bg-rose-50 text-rose-600 border border-rose-200 px-2 py-0.5 rounded text-xs font-medium">Barred (below warning band)</span>
+                        {% endif %}
+                    </td>
+                </tr>
+                {% else %}
+                <tr>
+                    <td colspan="{% if show_class is defined and show_class %}7{% else %}6{% endif %}" class="p-6 text-center text-slate-400">
+                        No student records found for these filters.
+                    </td>
+                </tr>
+                {% endfor %}
+                <tr data-iba-search-empty="{{ table_id }}" style="display: none;">
+                    <td colspan="{% if show_class is defined and show_class %}7{% else %}6{% endif %}" class="p-6 text-center text-slate-400">No students match your search.</td>
+                </tr>
+            </tbody>
+        </table>
+    </div>
+</div>
