@@ -124,17 +124,18 @@
                {% if request.endpoint == 'students.index' %}aria-current="page"{% endif %}">
                 <i class="fa-solid fa-user-plus"></i><span class="iba-nav-label">Students</span></a>
             <a href="{{ url_for('analytics.index') }}" title="Analytics" data-tip="Analytics"
-               class="iba-nav-link {{ 'iba-active' if request.endpoint in ('analytics.index', 'analytics.clusters') else '' }}
-               {% if request.endpoint in ('analytics.index', 'analytics.clusters') %}aria-current="page"{% endif %}">
+               class="iba-nav-link {{ 'iba-active' if request.endpoint in ('analytics.index', 'analytics.clusters', 'analytics.class_records', 'analytics.class_correct') else '' }}
+               {% if request.endpoint in ('analytics.index', 'analytics.clusters', 'analytics.class_records', 'analytics.class_correct') %}aria-current="page"{% endif %}">
                 <i class="fa-solid fa-chart-pie"></i><span class="iba-nav-label">Analytics</span></a>
+            <!-- v9.3: Defaulters now sits above ML Models. -->
+            <a href="{{ url_for('analytics.defaulters') }}" title="Defaulters" data-tip="Defaulters"
+               class="iba-nav-link {{ 'iba-active' if request.endpoint in ('analytics.defaulters', 'analytics.defaulters_all', 'analytics.defaulters_class') else '' }}
+               {% if request.endpoint in ('analytics.defaulters', 'analytics.defaulters_all', 'analytics.defaulters_class') %}aria-current="page"{% endif %}">
+                <i class="fa-solid fa-triangle-exclamation"></i><span class="iba-nav-label">Defaulters</span></a>
             <a href="{{ url_for('analytics.benchmark') }}" title="ML Models" data-tip="ML Models"
                class="iba-nav-link {{ 'iba-active' if request.endpoint == 'analytics.benchmark' else '' }}
                {% if request.endpoint == 'analytics.benchmark' %}aria-current="page"{% endif %}">
                 <i class="fa-solid fa-brain"></i><span class="iba-nav-label">ML Models</span></a>
-            <a href="{{ url_for('analytics.defaulters') }}" title="Defaulters" data-tip="Defaulters"
-               class="iba-nav-link {{ 'iba-active' if request.endpoint == 'analytics.defaulters' else '' }}
-               {% if request.endpoint == 'analytics.defaulters' %}aria-current="page"{% endif %}">
-                <i class="fa-solid fa-triangle-exclamation"></i><span class="iba-nav-label">Defaulters</span></a>
             {% endif %}
 
             <div class="mx-4 my-3 border-t border-white/10"></div>
@@ -188,7 +189,7 @@
             <!-- v8: one centred footer line — links next to the copyright,
                  clear spacing, no floating-right links. -->
             <footer class="iba-footer">
-                <p><span class="iba-footer-brand">Attenova</span> &mdash; Smart AI Attendance <span class="iba-footer-sep">&middot;</span> Crafted by <b>Bahadur Ali</b> <span class="iba-footer-sep">&middot;</span> v9.2 <span class="iba-footer-sep">&middot;</span> <a href="{{ url_for('dashboard.index') }}">Dashboard</a> <span class="iba-footer-sep">&middot;</span> <a href="{{ url_for('settings.index') }}">Settings</a></p>
+                <p><span class="iba-footer-brand">Attenova</span> &mdash; Smart AI Attendance <span class="iba-footer-sep">&middot;</span> Crafted by <b>Bahadur Ali</b> <span class="iba-footer-sep">&middot;</span> v9.3 <span class="iba-footer-sep">&middot;</span> <a href="{{ url_for('dashboard.index') }}">Dashboard</a> <span class="iba-footer-sep">&middot;</span> <a href="{{ url_for('settings.index') }}">Settings</a></p>
             </footer>
         </div>
     </div>
