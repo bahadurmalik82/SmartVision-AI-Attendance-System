@@ -39,7 +39,7 @@
         </div>
         <form action="{{ url_for('analytics.train_model') }}" method="POST" class="flex items-center space-x-2">
             <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
-            <select name="source" class="border border-slate-300 rounded-lg px-3 py-2 text-xs bg-white focus:ring-2 focus:ring-iba-blue">
+            <select name="source" class="border border-slate-300 px-3 py-2 text-xs bg-white focus:ring-2 focus:ring-iba-blue">
                 <option value="dataset">Classroom Dataset (5 Target Classes)</option>
                 <option value="enrolled" {% if enrolled_count < 2 %}disabled{% endif %}>
                     Enrolled Students Database ({{ enrolled_count }} ready)

@@ -16,7 +16,15 @@
     --iba-motion: 300ms ease;
 }
 
-/* ---------- Page load: gentle fade + rise ---------- */
+/* ---------- Dropdowns (v9.2): every <select> on the site has the same
+   slightly rounded corners. This one rule is the single source of
+   truth — no select anywhere carries its own rounded-* class any
+   more, so they can never drift apart. (Native select popup lists
+   are drawn by the browser/OS, so CSS rounds the control itself;
+   the opened list follows the browser.) ---------- */
+select {
+    border-radius: 0.625rem;
+}
 @keyframes iba-fade-slide-in {
     from { opacity: 0; transform: translateY(8px); }
     to   { opacity: 1; transform: translateY(0); }
