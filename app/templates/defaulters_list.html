@@ -1,0 +1,40 @@
+{% extends 'base.html' %}
+{% block title %}{{ threshold }}% Defaulter Warning List{% endblock %}
+
+{% block content %}
+<div class="space-y-6">
+    <div class="flex flex-col md:flex-row justify-between items-start md:items-start">
+        <div>
+            <a href="{{ url_for('analytics.defaulters') }}" class="text-xs text-iba-blue hover:underline"><i class="fa-solid fa-arrow-left mr-1"></i> Back to Defaulters</a>
+            <h1 class="text-2xl font-bold text-slate-900 flex items-center mt-2">
+                <i class="fa-solid fa-triangle-exclamation text-rose-600 mr-2"></i> Exam Eligibility & {{ threshold }}% Defaulter Warning
+            </h1>
+            <p class="text-xs text-slate-500 mt-1">{{ title }}{% if group %} — {{ group.display_name() }}{% endif %}</p>
+            <p class="text-xs text-slate-500 mt-1">University policy strictly requires at least {{ threshold }}% attendance to sit for final semester examinations.</p>
+            <p class="text-xs text-slate-500 mt-1">ML risk method: <strong>{{ prediction_method }}</strong> — {{ prediction_note }}</p>
+        </div>
+        <div class="mt-4 md:mt-0">
+            <a href="{{ export_url }}" class="btn btn-primary">
+                <i class="fa-solid fa-file-excel mr-1"></i> Export Defaulter List (Excel)
+            </a>
+        </div>
+    </div>
+
+    <!-- Alert Statistics Box -->
+    <div class="bg-rose-50 border border-rose-200 rounded-2xl p-5 text-xs text-rose-600 flex items-start space-x-3">
+        <i class="fa-solid fa-circle-exclamation text-xl text-rose-600 mt-0.5"></i>
+        <div class="max-w-3xl">
+            <h2 class="font-bold text-sm">Automated Examination Warning Threshold</h2>
+            <p class="mt-1 text-rose-600">
+                Students below {{ threshold - 5 }}% are automatically categorized as <strong>"Barred from Final Exam"</strong>. Students between {{ threshold - 5 }}% and {{ threshold }}% are placed on <strong>Borderline Warning</strong>. K-Means clustering algorithm automatically identifies attendance drop patterns.
+            </p>
+        </div>
+    </div>
+
+    {% include '_defaulters_tables.html' with context %}
+</div>
+{% endblock %}
+
+{% block scripts %}
+<script src="{{ url_for('static', filename='js/iba-student-lists.js') }}"></script>
+{% endblock %}

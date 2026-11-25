@@ -1,0 +1,176 @@
+    <!-- Defaulters Table -->
+    <div class="bg-white rounded-2xl border border-slate-200 shadow-sm overflow-hidden">
+        <div class="p-4 border-b border-slate-100 flex justify-between items-center bg-slate-50">
+            <h3 class="font-bold text-sm text-rose-600">At-risk students list (&lt; {{ threshold }}% attendance)</h3>
+            <span class="text-xs text-slate-500 font-semibold">{{ defaulters|length }} Students Affected</span>
+        </div>
+
+        <!-- v9.1: live search + select-and-send. The search box sits
+             outside the form on purpose — pressing Enter in it must
+             never submit a send. -->
+        <div class="p-4 border-b border-slate-100 flex flex-wrap items-center gap-2">
+            <div class="relative flex-grow min-w-[220px]">
+                <i class="fa-solid fa-magnifying-glass absolute left-3 top-1/2 -translate-y-1/2 text-slate-400 text-xs"></i>
+                <input type="text" data-iba-search="ibaDefaultersTable" placeholder="Search name, roll no, CMS ID, email or password..." class="w-full pl-8 pr-8 py-2 border border-slate-300 rounded-lg text-sm focus:ring-2 focus:ring-iba-blue" aria-label="Search at-risk students">
+                <button type="button" data-iba-search-clear="ibaDefaultersTable" class="absolute right-2 top-1/2 -translate-y-1/2 text-slate-400 hover:text-slate-700 text-sm hidden" title="Clear search" aria-label="Clear search"><i class="fa-solid fa-xmark"></i></button>
+            </div>
+            <button type="button" class="btn btn-secondary btn-sm" data-iba-select-toggle="ibaDefaultersTable">Select Students</button>
+            <button type="submit" form="ibaDefaulterForm" class="btn btn-primary btn-sm hidden" data-iba-select-send="ibaDefaultersTable" disabled>Send Email</button>
+        </div>
+        {% if not email_configured %}
+        <p class="px-4 pt-3 text-xs text-amber-600 font-semibold">Email is not set up yet — set SMTP in .env first, or the transcript emails will not send.</p>
+        {% endif %}
+
+        <form id="ibaDefaulterForm" method="post" action="{{ url_for('analytics.email_transcript_selected') }}">
+            <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
+            <div class="overflow-x-auto">
+                <table id="ibaDefaultersTable" class="w-full text-left text-xs">
+                    <thead class="bg-slate-100/70 text-slate-600 uppercase font-semibold">
+                        <tr>
+                            <th class="p-3.5 iba-select-col hidden"><input type="checkbox" data-iba-select-all="ibaDefaultersTable" aria-label="Select all shown at-risk students"></th>
+                            <th class="p-3.5">Roll No</th>
+                            <th class="p-3.5">Student Name</th>
+                            {% if show_class %}<th class="p-3.5">Class</th>{% endif %}
+                            <th class="p-3.5">Department</th>
+                            <th class="p-3.5">Total Classes</th>
+                            <th class="p-3.5">Current Attendance</th>
+                            <th class="p-3.5">Eligibility Status</th>
+                            <th class="p-3.5">Cluster / ML Risk</th>
+                            <th class="p-3.5 text-right">Actions</th>
+                        </tr>
+                    </thead>
+                    <tbody class="divide-y divide-slate-100">
+                        {% for d in defaulters %}
+                        <tr class="hover:bg-slate-50/80 transition" data-iba-search="{{ d.student.roll_number }} {{ d.student.name }} {{ d.student.cms_id or '' }} {{ d.student.email or '' }} {{ d.student.portal_password_plain or '' }}">
+                            <td class="p-3.5 iba-select-col hidden"><input type="checkbox" name="student_ids" value="{{ d.student.id }}" class="iba-row-select" aria-label="Select {{ d.student.name }}"></td>
+                            <td class="p-3.5 font-bold text-iba-blue">{{ d.student.roll_number }}</td>
+                            <td class="p-3.5 font-semibold text-slate-900">{{ d.student.name }}</td>
+                            {% if show_class %}<td class="p-3.5 text-slate-600">{{ d.student.class_group.display_name() if d.student.class_group else '—' }}</td>{% endif %}
+                            <td class="p-3.5 text-slate-600">{{ d.student.department }}</td>
+                            <td class="p-3.5 text-slate-600">{{ d.total_classes }}</td>
+                            <td class="p-3.5 font-bold {% if d.avg_percentage < threshold - 5 %}text-rose-600{% else %}text-slate-700{% endif %}">
+                                {{ d.avg_percentage }}%
+                            </td>
+                            <td class="p-3.5">
+                                {% if d.avg_percentage < threshold - 5 %}
+                                <span class="bg-rose-50 text-rose-600 border border-rose-200 px-2 py-0.5 rounded text-xs font-bold">
+                                    Ineligible
+                                </span>
+                                {% else %}
+                                <span class="bg-slate-100 text-slate-700 border border-slate-200 px-2 py-0.5 rounded text-xs font-bold">
+                                    ⚠️ Borderline Warning
+                                </span>
+                                {% endif %}
+                            </td>
+                            <td class="p-3.5 text-slate-600">
+                                {{ d.cluster_label }}<br>
+                                <span class="text-slate-500">{{ d.risk_label }}{% if d.risk_probability is not none %} ({{ (d.risk_probability * 100)|round(0) }}%){% endif %}</span>
+                            </td>
+                            <td class="p-3.5 text-right">
+                                <div class="flex justify-end gap-2">
+                                    <button type="submit" formaction="{{ url_for('analytics.email_defaulter', student_id=d.student.id) }}" class="btn btn-secondary btn-sm">
+                                        Send Alert Email
+                                    </button>
+                                    <button type="submit" formaction="{{ url_for('analytics.email_transcript', student_id=d.student.id) }}" class="btn btn-primary btn-sm">
+                                        Send Transcript
+                                    </button>
+                                </div>
+                            </td>
+                        </tr>
+                        {% else %}
+                        <tr>
+                            <td colspan="{% if show_class %}10{% else %}9{% endif %}" class="p-8 text-center text-slate-400">
+                                <i class="fa-solid fa-circle-check text-emerald-600 text-2xl mb-2 block"></i>
+                                Excellent news! No students currently have attendance below the {{ threshold }}% threshold.
+                            </td>
+                        </tr>
+                        {% endfor %}
+                        <tr data-iba-search-empty="ibaDefaultersTable" style="display: none;">
+                            <td colspan="{% if show_class %}10{% else %}9{% endif %}" class="p-8 text-center text-slate-400">No students match your search.</td>
+                        </tr>
+                    </tbody>
+                </table>
+            </div>
+        </form>
+    </div>
+
+    <!-- Non-Defaulters Table (v9.1): eligible students, same tools —
+         live search, select-and-send, and a per-student transcript. -->
+    <div class="bg-white rounded-2xl border border-slate-200 shadow-sm overflow-hidden">
+        <div class="p-4 border-b border-slate-100 flex justify-between items-center bg-slate-50">
+            <h3 class="font-bold text-sm text-emerald-600">Non-defaulters — eligible students (&ge; {{ threshold }}% attendance)</h3>
+            <span class="text-xs text-slate-500 font-semibold">{{ non_defaulters|length }} Students Eligible</span>
+        </div>
+
+        <div class="p-4 border-b border-slate-100 flex flex-wrap items-center gap-2">
+            <div class="relative flex-grow min-w-[220px]">
+                <i class="fa-solid fa-magnifying-glass absolute left-3 top-1/2 -translate-y-1/2 text-slate-400 text-xs"></i>
+                <input type="text" data-iba-search="ibaNonDefaultersTable" placeholder="Search name, roll no, CMS ID, email or password..." class="w-full pl-8 pr-8 py-2 border border-slate-300 rounded-lg text-sm focus:ring-2 focus:ring-iba-blue" aria-label="Search eligible students">
+                <button type="button" data-iba-search-clear="ibaNonDefaultersTable" class="absolute right-2 top-1/2 -translate-y-1/2 text-slate-400 hover:text-slate-700 text-sm hidden" title="Clear search" aria-label="Clear search"><i class="fa-solid fa-xmark"></i></button>
+            </div>
+            <button type="button" class="btn btn-secondary btn-sm" data-iba-select-toggle="ibaNonDefaultersTable">Select Students</button>
+            <button type="submit" form="ibaNonDefaulterForm" class="btn btn-primary btn-sm hidden" data-iba-select-send="ibaNonDefaultersTable" disabled>Send Email</button>
+        </div>
+        {% if not email_configured %}
+        <p class="px-4 pt-3 text-xs text-amber-600 font-semibold">Email is not set up yet — set SMTP in .env first, or the transcript emails will not send.</p>
+        {% endif %}
+
+        <form id="ibaNonDefaulterForm" method="post" action="{{ url_for('analytics.email_transcript_selected') }}">
+            <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
+            <div class="overflow-x-auto">
+                <table id="ibaNonDefaultersTable" class="w-full text-left text-xs">
+                    <thead class="bg-slate-100/70 text-slate-600 uppercase font-semibold">
+                        <tr>
+                            <th class="p-3.5 iba-select-col hidden"><input type="checkbox" data-iba-select-all="ibaNonDefaultersTable" aria-label="Select all shown eligible students"></th>
+                            <th class="p-3.5">Roll No</th>
+                            <th class="p-3.5">Student Name</th>
+                            {% if show_class %}<th class="p-3.5">Class</th>{% endif %}
+                            <th class="p-3.5">Department</th>
+                            <th class="p-3.5">Total Classes</th>
+                            <th class="p-3.5">Current Attendance</th>
+                            <th class="p-3.5">Eligibility Status</th>
+                            <th class="p-3.5">Cluster / ML Risk</th>
+                            <th class="p-3.5 text-right">Actions</th>
+                        </tr>
+                    </thead>
+                    <tbody class="divide-y divide-slate-100">
+                        {% for d in non_defaulters %}
+                        <tr class="hover:bg-slate-50/80 transition" data-iba-search="{{ d.student.roll_number }} {{ d.student.name }} {{ d.student.cms_id or '' }} {{ d.student.email or '' }} {{ d.student.portal_password_plain or '' }}">
+                            <td class="p-3.5 iba-select-col hidden"><input type="checkbox" name="student_ids" value="{{ d.student.id }}" class="iba-row-select" aria-label="Select {{ d.student.name }}"></td>
+                            <td class="p-3.5 font-bold text-iba-blue">{{ d.student.roll_number }}</td>
+                            <td class="p-3.5 font-semibold text-slate-900">{{ d.student.name }}</td>
+                            {% if show_class %}<td class="p-3.5 text-slate-600">{{ d.student.class_group.display_name() if d.student.class_group else '—' }}</td>{% endif %}
+                            <td class="p-3.5 text-slate-600">{{ d.student.department }}</td>
+                            <td class="p-3.5 text-slate-600">{{ d.total_classes }}</td>
+                            <td class="p-3.5 font-bold text-emerald-600">{{ d.avg_percentage }}%</td>
+                            <td class="p-3.5">
+                                <span class="bg-emerald-50 text-emerald-600 border border-emerald-200 px-2 py-0.5 rounded text-xs font-bold">
+                                    Eligible
+                                </span>
+                            </td>
+                            <td class="p-3.5 text-slate-600">
+                                {{ d.cluster_label }}<br>
+                                <span class="text-slate-500">{{ d.risk_label }}{% if d.risk_probability is not none %} ({{ (d.risk_probability * 100)|round(0) }}%){% endif %}</span>
+                            </td>
+                            <td class="p-3.5 text-right">
+                                <button type="submit" formaction="{{ url_for('analytics.email_transcript', student_id=d.student.id) }}" class="btn btn-primary btn-sm">
+                                    Send Transcript
+                                </button>
+                            </td>
+                        </tr>
+                        {% else %}
+                        <tr>
+                            <td colspan="{% if show_class %}10{% else %}9{% endif %}" class="p-8 text-center text-slate-400">
+                                <i class="fa-solid fa-circle-check text-emerald-600 text-2xl mb-2 block"></i>
+                                No students currently have attendance at or above the {{ threshold }}% threshold.
+                            </td>
+                        </tr>
+                        {% endfor %}
+                        <tr data-iba-search-empty="ibaNonDefaultersTable" style="display: none;">
+                            <td colspan="{% if show_class %}10{% else %}9{% endif %}" class="p-8 text-center text-slate-400">No students match your search.</td>
+                        </tr>
+                    </tbody>
+                </table>
+            </div>
+        </form>
+    </div>
